@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client"
+  output   = "/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String  @id @default(cuid())
+  username  String  @unique
+  email     String? @unique
+  firstName String
+  lastName  String
+  avatar    String  @default("https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png")
+
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Role {
+  id   String @id @default(cuid())
+  name String @unique
+
+  users       User[]
+  permissions Permission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Permission {
+  id   String @id @default(cuid())
+  name String @unique
+
+  roles Role[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
