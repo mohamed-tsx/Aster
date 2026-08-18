@@ -20,7 +20,7 @@ export const loginUser = async (username, password) => {
     where: {
       username: username,
     },
-    include: { role: true },
+    include: { role: { include: { permissions: true } } },
   });
 
   if (!user) {
@@ -68,7 +68,7 @@ export const refreshAccessToken = async (refreshToken) => {
         email: true,
         firstName: true,
         lastName: true,
-        role: true,
+        role: { include: { permissions: true } },
       },
     });
 
@@ -102,7 +102,7 @@ export const getCurrentUser = async (userId) => {
       firstName: true,
       lastName: true,
       avatar: true,
-      role: true,
+      role: { include: { permissions: true } },
       createdAt: true,
       updatedAt: true,
     },

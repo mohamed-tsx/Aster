@@ -34,7 +34,7 @@ export const getUserCtrl = asyncHandler(async (req, res) => {
  * Create a new user
  */
 export const createUserCtrl = asyncHandler(async (req, res) => {
-  const user = await createUser(req.body);
+  const user = await createUser(req.body, req.user);
   return sendCreated(res, "User created successfully", user);
 });
 
@@ -43,7 +43,7 @@ export const createUserCtrl = asyncHandler(async (req, res) => {
  * Update a user
  */
 export const updateUserCtrl = asyncHandler(async (req, res) => {
-  const user = await updateUser(req.params.id, req.body);
+  const user = await updateUser(req.params.id, req.body, req.user);
   return sendSuccess(res, "User updated successfully", user);
 });
 

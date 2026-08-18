@@ -3,6 +3,7 @@ import { hashPassword } from "../../Utils/Password/index.js";
 import { AppError } from "../../Utils/ErrorHandler/errorHandler.js";
 import { generateCustomUserId } from "../../Config/Generators/ID/customUserIdGenerator.js";
 import { syncFile } from "../File/fileService.js";
+import { assertNoSelfEscalation } from "../../Utils/Rbac/assertNoSelfEscalation.js";
 
 const USER_SELECT = {
   id: true,
@@ -18,13 +19,19 @@ const USER_SELECT = {
 
 const resolveRole = async (roleId, roleName) => {
   if (roleId) {
-    const role = await Prisma.role.findUnique({ where: { id: roleId } });
+    const role = await Prisma.role.findUnique({
+      where: { id: roleId },
+      include: { permissions: true },
+    });
     if (!role) throw new AppError("Role not found", 404, "NOT_FOUND");
     return role;
   }
 
   if (roleName) {
-    const role = await Prisma.role.findUnique({ where: { name: roleName } });
+    const role = await Prisma.role.findUnique({
+      where: { name: roleName },
+      include: { permissions: true },
+    });
     if (!role) throw new AppError("Role not found", 404, "NOT_FOUND");
     return role;
   }
@@ -73,7 +80,7 @@ export const getUserById = async (userId) => {
  * Create a new user
  * @param {Object} data - username, email, password, firstName, lastName, roleId or role
  */
-export const createUser = async (data) => {
+export const createUser = async (data, requestingUser) => {
   const { username, email, password, firstName, lastName, roleId, role } =
     data;
 
@@ -86,6 +93,10 @@ export const createUser = async (data) => {
   }
 
   const resolvedRole = await resolveRole(roleId, role);
+  await assertNoSelfEscalation(
+    resolvedRole.permissions.map((p) => p.id),
+    requestingUser,
+  );
   const hashedPassword = await hashPassword(password);
   const userId = await generateCustomUserId(resolvedRole.name);
 
@@ -110,7 +121,7 @@ export const createUser = async (data) => {
  * @param {string} userId
  * @param {Object} data - firstName, lastName, email, username, password, roleId or role
  */
-export const updateUser = async (userId, data) => {
+export const updateUser = async (userId, data, requestingUser) => {
   const existing = await Prisma.user.findUnique({ where: { id: userId } });
 
   if (!existing) {
@@ -144,6 +155,10 @@ export const updateUser = async (userId, data) => {
 
   if (data.roleId !== undefined || data.role !== undefined) {
     const resolvedRole = await resolveRole(data.roleId, data.role);
+    await assertNoSelfEscalation(
+      resolvedRole.permissions.map((p) => p.id),
+      requestingUser,
+    );
     updateFields.roleId = resolvedRole.id;
   }
 
