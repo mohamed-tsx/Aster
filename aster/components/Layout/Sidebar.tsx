@@ -35,8 +35,11 @@ import {
   LogOut,
   User as UserIcon,
   Shield,
+  ShieldCheck,
   ChevronDown,
   ChevronsUpDown,
+  List,
+  UserPlus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -51,8 +54,8 @@ type NavigationItem = {
   href: string;
   icon: any;
   badge?: any;
-  children?: any;
-  roles?: string[];
+  children?: NavigationItem[] | null;
+  permission?: string;
 };
 
 const navigation: NavigationItem[] = [
@@ -67,7 +70,17 @@ const navigation: NavigationItem[] = [
     name: "Users",
     href: "/dashboard/users",
     icon: Users,
+    children: [
+      { name: "All Users", href: "/dashboard/users", icon: List, permission: "VIEW_USERS" },
+      { name: "Add New User", href: "/dashboard/users/new", icon: UserPlus, permission: "CREATE_USERS" },
+    ],
+  },
+  {
+    name: "Roles & Permissions",
+    href: "/dashboard/roles",
+    icon: ShieldCheck,
     children: null,
+    permission: "MANAGE_ROLES",
   },
   {
     name: "Settings",
@@ -84,13 +97,25 @@ export default function Sidebar() {
   const { openMobile, setOpenMobile } = useSidebarStore();
   const [openItems, setOpenItems] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const { hasAnyPermission } = useRBAC();
+  const { hasPermission } = useRBAC();
 
-  // Filter navigation based on roles (if roles property exists)
-  const roleFilteredNavigation = navigation.filter((item) => {
-    if (!item.roles) return true; // No roles defined = accessible to all
-    return hasAnyPermission(item.roles);
-  });
+  // Filter navigation based on the current user's real permissions
+  const roleFilteredNavigation = navigation
+    .map((item): NavigationItem | null => {
+      const children = item.children
+        ? item.children.filter(
+            (child) => !child.permission || hasPermission(child.permission),
+          )
+        : null;
+
+      if (item.children && (!children || children.length === 0)) return null;
+      if (!item.children && item.permission && !hasPermission(item.permission)) {
+        return null;
+      }
+
+      return { ...item, children };
+    })
+    .filter((item): item is NavigationItem => item !== null);
 
   // Filter navigation based on search term
   const filteredNavigation = roleFilteredNavigation.filter((item) => {
