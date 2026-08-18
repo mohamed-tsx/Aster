@@ -25,6 +25,7 @@ async function main() {
     "CREATE_USERS",
     "UPDATE_USERS",
     "DELETE_USERS",
+    "MANAGE_ROLES",
   ];
 
   const permissions = await Promise.all(
