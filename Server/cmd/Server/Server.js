@@ -10,7 +10,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Import routes
-// import authRoutes from "../../Src/Routes/Auth/authRoutes.js";
+import authRoutes from "../../Src/Routes/Auth/authRoute.js";
+import usersRoutes from "../../Src/Routes/Users/usersRoute.js";
+import Verify from "../../Src/Middlewares/Auth/Verify.js";
 
 // Import enhanced error handler middleware
 import {
@@ -76,10 +78,15 @@ Server.use(express.json());
 Server.use(cookieParser()); // Handle cookies
 Server.use("/api/v1", apiLimiter);
 Server.use("/api/v1/auth", authLimiter);
-Server.use("/uploads", express.static(path.join(__dirname, "../../uploads/"))); // Serve uploaded files
+Server.use(
+  "/uploads",
+  Verify,
+  express.static(path.join(__dirname, "../../uploads/")),
+); // Serve uploaded files (requires login)
 
 // Server Routes
-// Server.use("/api/v1/auth", authRoutes);
+Server.use("/api/v1/auth", authRoutes);
+Server.use("/api/v1/users", usersRoutes);
 
 // Default route
 Server.get("/", (req, res) => {

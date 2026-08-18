@@ -1,26 +1,622 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@import "tw-animate-css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
+
+/* =========================================================
+   ASTER HOSPITAL REFERRAL CENTER — EAST AFRICA
+   Brand colours sampled from supplied logo
+
+   Blue:  #0D4F92
+   Green: #16B58C
+   ========================================================= */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --font-sans: var(--font-poppins);
+
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo,
+    monospace;
+
+  --color-ring: var(--ring);
+  --color-border: var(--border);
+  --color-input: var(--input);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Brand utilities */
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-green: var(--brand-green);
+  --color-brand-blue-dark: var(--brand-blue-dark);
+  --color-brand-green-dark: var(--brand-green-dark);
+  --color-brand-blue-soft: var(--brand-blue-soft);
+  --color-brand-green-soft: var(--brand-green-soft);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* =========================================================
+   LIGHT THEME
+   ========================================================= */
+
+:root {
+  --radius: 0.375rem;
+
+  /* ---------------------------------------------------------
+     BRAND PALETTE
+     --------------------------------------------------------- */
+
+  --brand-blue: #0d4f92;
+  --brand-green: #16b58c;
+
+  /* Dark variants for stronger text/background contrast */
+  --brand-blue-dark: #083d73;
+  --brand-green-dark: #0b6b52;
+
+  /* Very light brand surfaces */
+  --brand-blue-soft: #eaf3fa;
+  --brand-green-soft: #e7f7f2;
+
+  /* Accessible brand text */
+  --brand-blue-text: #0d4f92;
+  --brand-green-text: #0b6b52;
+
+  /* ---------------------------------------------------------
+     PAGE
+     --------------------------------------------------------- */
+
+  --background: #f8fafc;
+  --foreground: #0b1726;
+
+  /* ---------------------------------------------------------
+     CARDS / POPOVERS
+     --------------------------------------------------------- */
+
+  --card: #ffffff;
+  --card-foreground: #0b1726;
+
+  --popover: #ffffff;
+  --popover-foreground: #0b1726;
+
+  /* ---------------------------------------------------------
+     PRIMARY
+     Logo blue + white gives strong contrast
+     --------------------------------------------------------- */
+
+  --primary: #0d4f92;
+  --primary-foreground: #ffffff;
+
+  /* ---------------------------------------------------------
+     ACCENT
+     Exact logo green is preserved.
+     Dark text is used for accessibility.
+     --------------------------------------------------------- */
+
+  --accent: #16b58c;
+  --accent-foreground: #07140f;
+
+  /* ---------------------------------------------------------
+     SECONDARY
+     --------------------------------------------------------- */
+
+  --secondary: #eaf3fa;
+  --secondary-foreground: #0a3f77;
+
+  /* ---------------------------------------------------------
+     MUTED
+     --------------------------------------------------------- */
+
+  --muted: #edf3f6;
+  --muted-foreground: #52616f;
+
+  /* ---------------------------------------------------------
+     STATUS
+     Keep semantic red for dangerous actions.
+     --------------------------------------------------------- */
+
+  --destructive: #c62828;
+  --destructive-foreground: #ffffff;
+
+  /* ---------------------------------------------------------
+     FORM / BORDER
+     --------------------------------------------------------- */
+
+  --border: #d2dee8;
+  --input: #d2dee8;
+
+  --ring: #0d4f92;
+
+  /* ---------------------------------------------------------
+     SIDEBAR
+     --------------------------------------------------------- */
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0b1726;
+
+  --sidebar-primary: #0d4f92;
+  --sidebar-primary-foreground: #ffffff;
+
+  --sidebar-accent: #e7f7f2;
+  --sidebar-accent-foreground: #0b6b52;
+
+  --sidebar-border: #d2dee8;
+  --sidebar-ring: #0d4f92;
+}
+
+/* =========================================================
+   DARK THEME
+   ========================================================= */
+
+.dark {
+  /* ---------------------------------------------------------
+     BRAND
+     --------------------------------------------------------- */
+
+  --brand-blue: #0d4f92;
+  --brand-green: #16b58c;
+
+  --brand-blue-dark: #083d73;
+  --brand-green-dark: #0b6b52;
+
+  /* Brighter blue used specifically for text on dark surfaces */
+  --brand-blue-text: #6bb7ff;
+  --brand-green-text: #31d0a6;
+
+  --brand-blue-soft: #102a43;
+  --brand-green-soft: #0c3029;
+
+  /* ---------------------------------------------------------
+     PAGE
+     Neutral blue-black rather than saturated blue
+     --------------------------------------------------------- */
+
+  --background: #08111d;
+  --foreground: #f8fbff;
+
+  /* ---------------------------------------------------------
+     CARDS
+     --------------------------------------------------------- */
+
+  --card: #0d1724;
+  --card-foreground: #f8fbff;
+
+  --popover: #0d1724;
+  --popover-foreground: #f8fbff;
+
+  /* ---------------------------------------------------------
+     PRIMARY
+     --------------------------------------------------------- */
+
+  --primary: #0d4f92;
+  --primary-foreground: #ffffff;
+
+  /* ---------------------------------------------------------
+     ACCENT
+     --------------------------------------------------------- */
+
+  --accent: #16b58c;
+  --accent-foreground: #07140f;
+
+  /* ---------------------------------------------------------
+     SECONDARY
+     --------------------------------------------------------- */
+
+  --secondary: #12263a;
+  --secondary-foreground: #dceaf7;
+
+  /* ---------------------------------------------------------
+     MUTED
+     --------------------------------------------------------- */
+
+  --muted: #152333;
+  --muted-foreground: #a9b7c5;
+
+  /* ---------------------------------------------------------
+     STATUS
+     --------------------------------------------------------- */
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  /* ---------------------------------------------------------
+     BORDER / INPUT
+     --------------------------------------------------------- */
+
+  --border: #2a3c4f;
+  --input: #152536;
+
+  /*
+   * Green works particularly well as a focus indicator
+   * against the dark background.
+   */
+  --ring: #16b58c;
+
+  /* ---------------------------------------------------------
+     SIDEBAR
+     --------------------------------------------------------- */
+
+  --sidebar: #0a1420;
+  --sidebar-foreground: #f8fbff;
+
+  --sidebar-primary: #0d4f92;
+  --sidebar-primary-foreground: #ffffff;
+
+  --sidebar-accent: #12304a;
+  --sidebar-accent-foreground: #ffffff;
+
+  --sidebar-border: #26384a;
+  --sidebar-ring: #16b58c;
+}
+
+/* =========================================================
+   CUSTOM SCROLLBAR
+   ========================================================= */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--brand-green) 55%, transparent)
+    transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--brand-green) 50%, transparent);
+
+  border-radius: 9999px;
+
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--brand-green) 75%, transparent);
+
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: var(--brand-green);
+  background-clip: padding-box;
+}
+
+/* =========================================================
+   BASE STYLES
+   ========================================================= */
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+
+    min-height: 100vh;
+  }
+
+  /* ---------------------------------------------------------
+     SELECTION
+     --------------------------------------------------------- */
+
+  ::selection {
+    background: color-mix(in srgb, var(--brand-green) 35%, transparent);
+
+    color: var(--foreground);
+  }
+
+  /* ---------------------------------------------------------
+     LINKS
+     --------------------------------------------------------- */
+
+  a {
+    transition:
+      color 0.2s ease,
+      opacity 0.2s ease;
+  }
+
+  /* ---------------------------------------------------------
+     FORM FIELDS
+     --------------------------------------------------------- */
+
+  input,
+  textarea,
+  select {
+    @apply border border-border bg-background text-foreground;
+
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      background-color 0.2s ease;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--muted-foreground);
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    border-color: var(--ring);
+
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 25%, transparent);
+
+    outline: none;
+  }
+
+  /* ---------------------------------------------------------
+     STANDARD CARD
+     --------------------------------------------------------- */
+
+  .bg-card {
+    background-color: var(--card);
+    color: var(--card-foreground);
+    border: 1px solid var(--border);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* =========================================================
+   DASHBOARD CARDS
+   ========================================================= */
+
+@layer components {
+  .bg-vibrant-card {
+    background-color: var(--card);
+    color: var(--card-foreground);
+
+    border: 1px solid var(--border);
+
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      transform 0.2s ease;
+  }
+
+  .bg-vibrant-card:hover {
+    border-color: color-mix(in srgb, var(--brand-blue) 65%, var(--border));
+
+    box-shadow: 0 5px 18px color-mix(in srgb, var(--brand-blue) 9%, transparent);
+  }
+
+  /* Green category */
+  .bg-vibrant-card-emerald {
+    background: color-mix(in srgb, var(--brand-green) 6%, var(--card));
+
+    border-left: 3px solid var(--brand-green);
+  }
+
+  /* Blue category */
+  .bg-vibrant-card-blue {
+    background: color-mix(in srgb, var(--brand-blue) 6%, var(--card));
+
+    border-left: 3px solid var(--brand-blue);
+  }
+
+  /* Keep legacy class names compatible with existing components */
+  .bg-vibrant-card-purple {
+    background: color-mix(in srgb, var(--brand-blue) 4%, var(--card));
+
+    border-left: 3px solid var(--brand-blue);
+  }
+
+  .bg-vibrant-card-amber {
+    background: color-mix(in srgb, var(--brand-green) 4%, var(--card));
+
+    border-left: 3px solid var(--brand-green);
+  }
+}
+
+/* =========================================================
+   BRAND UTILITIES
+   ========================================================= */
+
+@layer utilities {
+  /* ---------------------------------------------------------
+     TEXT
+     These automatically adapt for accessibility.
+     --------------------------------------------------------- */
+
+  .text-brand-blue {
+    color: var(--brand-blue-text);
+  }
+
+  .text-brand-green {
+    color: var(--brand-green-text);
+  }
+
+  /* Exact logo colours if explicitly needed */
+  .text-logo-blue {
+    color: #0d4f92;
+  }
+
+  .text-logo-green {
+    color: #16b58c;
+  }
+
+  /* ---------------------------------------------------------
+     BACKGROUNDS
+     --------------------------------------------------------- */
+
+  /*
+   * Blue supports white foreground very well.
+   */
+  .bg-brand-blue {
+    background-color: #0d4f92;
+    color: #ffffff;
+  }
+
+  /*
+   * Exact logo green + dark foreground.
+   * Do NOT use white normal-size text here.
+   */
+  .bg-brand-green {
+    background-color: #16b58c;
+    color: #07140f;
+  }
+
+  /*
+   * Darker green when white text is required.
+   */
+  .bg-brand-green-strong {
+    background-color: #0b6b52;
+    color: #ffffff;
+  }
+
+  .bg-brand-blue-soft {
+    background-color: var(--brand-blue-soft);
+    color: var(--brand-blue-text);
+  }
+
+  .bg-brand-green-soft {
+    background-color: var(--brand-green-soft);
+    color: var(--brand-green-text);
+  }
+
+  /* ---------------------------------------------------------
+     BORDERS
+     --------------------------------------------------------- */
+
+  .border-brand-blue {
+    border-color: #0d4f92;
+  }
+
+  .border-brand-green {
+    border-color: #16b58c;
+  }
+
+  /* ---------------------------------------------------------
+     HOVER
+     --------------------------------------------------------- */
+
+  .hover\:bg-brand-blue:hover {
+    background-color: #083d73;
+    color: #ffffff;
+  }
+
+  .hover\:bg-brand-green:hover {
+    background-color: #0b6b52;
+    color: #ffffff;
+  }
+
+  .hover\:text-brand-blue:hover {
+    color: var(--brand-blue-text);
+  }
+
+  .hover\:text-brand-green:hover {
+    color: var(--brand-green-text);
+  }
+
+  /* ---------------------------------------------------------
+     EXISTING "GRADIENT" CLASS
+     Kept for backward compatibility.
+     It is deliberately solid.
+     --------------------------------------------------------- */
+
+  .bg-gradient-brand {
+    background-color: #0d4f92;
+    color: #ffffff;
+  }
+
+  .dark .bg-gradient-brand {
+    background-color: #0d4f92;
+    color: #ffffff;
+
+    border: 1px solid color-mix(in srgb, var(--brand-green) 30%, var(--border));
+  }
+
+  /* ---------------------------------------------------------
+     BRAND DIVIDER
+     --------------------------------------------------------- */
+
+  .border-brand-combination {
+    border-color: color-mix(in srgb, var(--brand-blue) 50%, var(--brand-green));
+  }
+
+  /* ---------------------------------------------------------
+     FOCUS RING
+     --------------------------------------------------------- */
+
+  .focus-brand {
+    outline: none;
+  }
+
+  .focus-brand:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 30%, transparent);
+  }
+
+  /* ---------------------------------------------------------
+     MOTION
+     --------------------------------------------------------- */
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
