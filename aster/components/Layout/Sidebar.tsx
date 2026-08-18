@@ -374,7 +374,7 @@ export default function Sidebar() {
                 />
                 <div className="text-primary">
                   <h1 className="text-xl font-semibold">Astra</h1>
-                  <p className="text-[10px]">We'll Treat You Better</p>
+                  <p className="text-[10px]">We'll Treat You Well</p>
                 </div>
               </div>
             )}
