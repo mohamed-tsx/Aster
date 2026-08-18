@@ -13,6 +13,7 @@ const __dirname = path.dirname(__filename);
 import authRoutes from "../../Src/Routes/Auth/authRoute.js";
 import usersRoutes from "../../Src/Routes/Users/usersRoute.js";
 import rolesRoutes from "../../Src/Routes/Roles/rolesRoute.js";
+import permissionsRoutes from "../../Src/Routes/Permissions/permissionsRoute.js";
 import Verify from "../../Src/Middlewares/Auth/Verify.js";
 
 // Import enhanced error handler middleware
@@ -89,6 +90,7 @@ Server.use(
 Server.use("/api/v1/auth", authRoutes);
 Server.use("/api/v1/users", usersRoutes);
 Server.use("/api/v1/roles", rolesRoutes);
+Server.use("/api/v1/permissions", permissionsRoutes);
 
 // Default route
 Server.get("/", (req, res) => {
