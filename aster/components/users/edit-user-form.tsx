@@ -37,7 +37,7 @@ export function EditUserForm({
   submitLabel = "Save changes",
 }: EditUserFormProps) {
   const toast = useToast();
-  const { isAdmin } = useRBAC();
+  const { hasPermission } = useRBAC();
   const form = useForm<UpdateUserFormValues>({
     defaultValues: mapUserToForm(user),
   });
@@ -61,7 +61,7 @@ export function EditUserForm({
         <AccountFields
           form={form}
           isCreate={false}
-          lockedRole={isAdmin() ? undefined : user.role.name}
+          lockedRole={hasPermission("MANAGE_ROLES") ? undefined : user.role.name}
         />
         <div className="flex justify-end">
           <Button type="submit" disabled={form.formState.isSubmitting}>

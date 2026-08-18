@@ -1,59 +1,24 @@
 import { useAuthStore } from "@/stores/auth-store";
 
 /**
- * Simple role-based access control hook
- * Uses single role field like backend
+ * Permission-based access control — backed by the real permissions the
+ * backend attaches to the logged-in user's role (see Verify.js / auth/me).
  */
 export const useRBAC = () => {
-    const { user } = useAuthStore();
+  const { user } = useAuthStore();
+  const permissionNames = user?.role?.permissions?.map((p) => p.name) ?? [];
 
-    /**
-     * Check if the user has a specific role
-     */
-    const hasRole = (role: string) => {
-        if (!user || !user.role) return false;
-        return user.role.name === role;
-    };
+  const hasPermission = (permission: string) => permissionNames.includes(permission);
+  const hasAnyPermission = (permissions: string[]) =>
+    permissions.some((p) => permissionNames.includes(p));
+  const hasRole = (role: string) => user?.role?.name === role;
 
-    /**
-     * Check if the user has any of the specified roles
-     */
-    const hasAnyRole = (roles: string[]) => {
-        if (!user || !user.role) return false;
-        return roles.includes(user.role.name);
-    };
-
-    /**
-     * Check if user is admin (ADMIN or CRD_STAFF)
-     */
-    const isAdmin = () => {
-        if (!user || !user.role) return false;
-        return user.role.name === "ADMIN" || user.role.name === "CRD_STAFF";
-    };
-
-    /**
-     * Check if user is unit coordinator
-     */
-    const isUnitCoordinator = () => {
-        if (!user || !user.role) return false;
-        return user.role.name === "UNIT_COORDINATOR";
-    };
-
-    /**
-     * Check if user is researcher
-     */
-    const isResearcher = () => {
-        if (!user || !user.role) return false;
-        return user.role.name === "RESEARCHER";
-    };
-
-    return {
-        hasRole,
-        hasAnyRole,
-        isAdmin,
-        isUnitCoordinator,
-        isResearcher,
-        user,
-        role: user?.role?.name || null,
-    };
+  return {
+    hasPermission,
+    hasAnyPermission,
+    hasRole,
+    permissions: permissionNames,
+    role: user?.role?.name ?? null,
+    user,
+  };
 };

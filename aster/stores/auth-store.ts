@@ -5,6 +5,7 @@ import { persist } from "zustand/middleware";
 interface Role {
   id: string;
   name: string;
+  permissions: { id: string; name: string }[];
   createdAt: string;
   updatedAt: string;
 }

@@ -84,12 +84,12 @@ export default function Sidebar() {
   const { openMobile, setOpenMobile } = useSidebarStore();
   const [openItems, setOpenItems] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const { hasAnyRole } = useRBAC();
+  const { hasAnyPermission } = useRBAC();
 
   // Filter navigation based on roles (if roles property exists)
   const roleFilteredNavigation = navigation.filter((item) => {
     if (!item.roles) return true; // No roles defined = accessible to all
-    return hasAnyRole(item.roles);
+    return hasAnyPermission(item.roles);
   });
 
   // Filter navigation based on search term
