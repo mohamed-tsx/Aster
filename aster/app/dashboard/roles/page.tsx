@@ -3,6 +3,7 @@
 import { PageHeader } from "@/components/users/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RolesTab } from "@/components/roles/roles-tab";
+import { PermissionsTab } from "@/components/roles/permissions-tab";
 import { usePermissionGuard } from "@/hooks/use-permission-guard";
 
 export default function RolesPage() {
@@ -24,7 +25,7 @@ export default function RolesPage() {
           <RolesTab />
         </TabsContent>
         <TabsContent value="permissions" className="mt-4">
-          <p className="text-sm text-muted-foreground">Coming in the next task.</p>
+          <PermissionsTab />
         </TabsContent>
       </Tabs>
     </div>
