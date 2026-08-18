@@ -367,11 +367,15 @@ export default function Sidebar() {
             {!collapsed && (
               <div className="flex items-center space-x-2">
                 <Image
-                  src="/aster-logo.svg"
+                  src="/logo.svg"
                   alt="Aster Hospital Referral Center"
-                  width={96}
-                  height={96}
+                  width={45}
+                  height={45}
                 />
+                <div className="text-primary">
+                  <h1 className="text-xl font-semibold">Astra</h1>
+                  <p className="text-[10px]">We'll Treat You Better</p>
+                </div>
               </div>
             )}
             <Tooltip>
