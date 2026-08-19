@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import { Form } from "@/components/ui/form";
@@ -37,19 +37,22 @@ export function CreateUserForm({
   const toast = useToast();
   const { hasRole, permissions } = useRBAC();
   const form = useForm<CreateUserFormValues>({ defaultValues });
-  const [roles, setRoles] = useState<Role[]>([]);
+  const [allRoles, setAllRoles] = useState<Role[]>([]);
 
   useEffect(() => {
     listRoles()
-      .then((all) => {
-        const grantable = all.filter(
-          (r) => hasRole("ADMIN") || r.permissions.every((p) => permissions.includes(p.name)),
-        );
-        setRoles(grantable);
-      })
+      .then((all) => setAllRoles(all))
       .catch((error) => toast.error("Failed to load roles", getErrorMessage(error)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const roles = useMemo(
+    () =>
+      allRoles.filter(
+        (r) => hasRole("ADMIN") || r.permissions.every((p) => permissions.includes(p.name)),
+      ),
+    [allRoles, hasRole, permissions],
+  );
 
   return (
     <Form {...form}>
