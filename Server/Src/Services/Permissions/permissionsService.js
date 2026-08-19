@@ -1,5 +1,6 @@
 import Prisma from "../../Config/Prisma/db.js";
 import { AppError } from "../../Utils/ErrorHandler/errorHandler.js";
+import { assertNoSelfEscalation } from "../../Utils/Rbac/assertNoSelfEscalation.js";
 
 const SYSTEM_PERMISSION = "MANAGE_ROLES";
 
@@ -45,11 +46,18 @@ export const updatePermission = async (permissionId, data) => {
   return Prisma.permission.update({ where: { id: permissionId }, data: { name } });
 };
 
-export const deletePermission = async (permissionId) => {
+/**
+ * @param {string} permissionId
+ * @param {object} requestingUser - req.user (with role.permissions included)
+ */
+export const deletePermission = async (permissionId, requestingUser) => {
   const permission = await Prisma.permission.findUnique({ where: { id: permissionId } });
   if (!permission) {
     throw new AppError("Permission not found", 404, "NOT_FOUND");
   }
+  // Deleting a permission cascades it off every role (ADMIN included), so it is
+  // a revocation: a non-ADMIN caller may only delete one they hold themselves.
+  await assertNoSelfEscalation([permissionId], requestingUser, "delete");
   if (permission.name === SYSTEM_PERMISSION) {
     throw new AppError(
       `${SYSTEM_PERMISSION} is a system permission and cannot be deleted`,

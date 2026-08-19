@@ -50,7 +50,10 @@ export const createRole = async (data, requestingUser) => {
  * @param {object} requestingUser
  */
 export const updateRole = async (roleId, data, requestingUser) => {
-  const role = await Prisma.role.findUnique({ where: { id: roleId } });
+  const role = await Prisma.role.findUnique({
+    where: { id: roleId },
+    include: { permissions: true },
+  });
   if (!role) {
     throw new AppError("Role not found", 404, "NOT_FOUND");
   }
@@ -58,11 +61,13 @@ export const updateRole = async (roleId, data, requestingUser) => {
   const updateData = {};
 
   if (data.name !== undefined) {
-    if (role.name === ADMIN_ROLE_NAME) {
-      throw new AppError("The ADMIN role cannot be renamed", 400, "VALIDATION_ERROR");
-    }
-    if (!data.name?.trim()) {
+    if (typeof data.name !== "string" || !data.name.trim()) {
       throw new AppError("Role name is required", 400, "VALIDATION_ERROR");
+    }
+    // The UI always round-trips the current name (the input is disabled but
+    // still holds form state), so only reject a genuine rename of ADMIN.
+    if (role.name === ADMIN_ROLE_NAME && data.name.trim() !== role.name) {
+      throw new AppError("The ADMIN role cannot be renamed", 400, "VALIDATION_ERROR");
     }
     const dup = await Prisma.role.findFirst({
       where: { name: data.name.trim(), id: { not: roleId } },
@@ -74,7 +79,18 @@ export const updateRole = async (roleId, data, requestingUser) => {
   }
 
   if (data.permissionIds !== undefined) {
+    // Validates shape/existence of the new set and rejects permissions the
+    // requester is trying to ADD without holding them.
     await assertNoSelfEscalation(data.permissionIds, requestingUser);
+
+    // Symmetric guard: removing a permission from a role is just as much a
+    // privilege change as adding one, so a non-ADMIN caller may only strip a
+    // permission off a role if they hold that permission themselves.
+    const nextIds = new Set(data.permissionIds ?? []);
+    const removedIds = role.permissions
+      .filter((p) => !nextIds.has(p.id))
+      .map((p) => p.id);
+    await assertNoSelfEscalation(removedIds, requestingUser, "remove");
 
     if (role.name === ADMIN_ROLE_NAME) {
       const manageRoles = await Prisma.permission.findUnique({

@@ -52,6 +52,6 @@ export const updateUserCtrl = asyncHandler(async (req, res) => {
  * Delete a user
  */
 export const deleteUserCtrl = asyncHandler(async (req, res) => {
-  await deleteUser(req.params.id, req.user.id);
+  await deleteUser(req.params.id, req.user);
   return sendSuccess(res, "User deleted successfully");
 });

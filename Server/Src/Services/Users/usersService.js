@@ -3,7 +3,14 @@ import { hashPassword } from "../../Utils/Password/index.js";
 import { AppError } from "../../Utils/ErrorHandler/errorHandler.js";
 import { generateCustomUserId } from "../../Config/Generators/ID/customUserIdGenerator.js";
 import { syncFile } from "../File/fileService.js";
-import { assertNoSelfEscalation } from "../../Utils/Rbac/assertNoSelfEscalation.js";
+import {
+  assertNoSelfEscalation,
+  assertCanManageUser,
+} from "../../Utils/Rbac/assertNoSelfEscalation.js";
+
+// Loads a target user together with the permissions their role holds, so
+// assertCanManageUser can compare them against the requester's own set.
+const TARGET_USER_INCLUDE = { role: { include: { permissions: true } } };
 
 const USER_SELECT = {
   id: true,
@@ -122,11 +129,16 @@ export const createUser = async (data, requestingUser) => {
  * @param {Object} data - firstName, lastName, email, username, password, roleId or role
  */
 export const updateUser = async (userId, data, requestingUser) => {
-  const existing = await Prisma.user.findUnique({ where: { id: userId } });
+  const existing = await Prisma.user.findUnique({
+    where: { id: userId },
+    include: TARGET_USER_INCLUDE,
+  });
 
   if (!existing) {
     throw new AppError("User not found", 404, "NOT_FOUND");
   }
+
+  assertCanManageUser(existing, requestingUser);
 
   const updateFields = {};
 
@@ -155,11 +167,17 @@ export const updateUser = async (userId, data, requestingUser) => {
 
   if (data.roleId !== undefined || data.role !== undefined) {
     const resolvedRole = await resolveRole(data.roleId, data.role);
-    await assertNoSelfEscalation(
-      resolvedRole.permissions.map((p) => p.id),
-      requestingUser,
-    );
-    updateFields.roleId = resolvedRole.id;
+
+    // The client always round-trips the current roleId, so only treat this as
+    // an actual reassignment (and run the escalation check) when the role
+    // really changes. Re-sending the same role grants nothing new.
+    if (resolvedRole.id !== existing.roleId) {
+      await assertNoSelfEscalation(
+        resolvedRole.permissions.map((p) => p.id),
+        requestingUser,
+      );
+      updateFields.roleId = resolvedRole.id;
+    }
   }
 
   if (data.password !== undefined) {
@@ -178,10 +196,10 @@ export const updateUser = async (userId, data, requestingUser) => {
 /**
  * Delete a user
  * @param {string} userId
- * @param {string} requestingUserId - the authenticated admin performing the delete
+ * @param {object} requestingUser - the authenticated user performing the delete (with role.permissions)
  */
-export const deleteUser = async (userId, requestingUserId) => {
-  if (userId === requestingUserId) {
+export const deleteUser = async (userId, requestingUser) => {
+  if (userId === requestingUser?.id) {
     throw new AppError(
       "You cannot delete your own account",
       400,
@@ -189,11 +207,16 @@ export const deleteUser = async (userId, requestingUserId) => {
     );
   }
 
-  const existing = await Prisma.user.findUnique({ where: { id: userId } });
+  const existing = await Prisma.user.findUnique({
+    where: { id: userId },
+    include: TARGET_USER_INCLUDE,
+  });
 
   if (!existing) {
     throw new AppError("User not found", 404, "NOT_FOUND");
   }
+
+  assertCanManageUser(existing, requestingUser);
 
   if (existing.avatar) {
     await syncFile(existing.avatar, null);

@@ -23,6 +23,6 @@ export const updatePermissionCtrl = asyncHandler(async (req, res) => {
 });
 
 export const deletePermissionCtrl = asyncHandler(async (req, res) => {
-  await deletePermission(req.params.id);
+  await deletePermission(req.params.id, req.user);
   return sendSuccess(res, "Permission deleted successfully");
 });

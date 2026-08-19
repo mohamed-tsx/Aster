@@ -37,6 +37,12 @@ interface AuthState {
   updateUser: (userData: Partial<User>) => void;
 }
 
+// Guards against overlapping /auth/me calls. hasCheckedAuth alone cannot do
+// this: it only flips once the response lands, so two callers firing in the
+// same tick (e.g. React StrictMode's double effect invocation in dev) would
+// both get past it and issue duplicate requests.
+let authCheckInFlight = false;
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -146,9 +152,10 @@ export const useAuthStore = create<AuthState>()(
         const { hasCheckedAuth } = get();
 
         // Prevent multiple simultaneous auth checks
-        if (hasCheckedAuth) {
+        if (hasCheckedAuth || authCheckInFlight) {
           return;
         }
+        authCheckInFlight = true;
 
         try {
           set({ isLoading: true });
@@ -178,6 +185,8 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             hasCheckedAuth: true,
           });
+        } finally {
+          authCheckInFlight = false;
         }
       },
 
@@ -201,10 +210,22 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "auth-storage",
+      // hasCheckedAuth is deliberately NOT persisted: it must default to false
+      // on every fresh load so the dashboard layout's checkAuth() re-validates
+      // against /auth/me and picks up role/permission changes without a logout.
+      // user/isAuthenticated stay persisted for instant paint before it lands.
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
-        hasCheckedAuth: state.hasCheckedAuth,
+      }),
+      // Sessions persisted before hasCheckedAuth was dropped from partialize
+      // still carry `hasCheckedAuth: true` in localStorage, and that stale value
+      // would be merged back in and make checkAuth() short-circuit forever.
+      // Force it false on every rehydrate so the flag is purely per-page-load.
+      merge: (persisted, current) => ({
+        ...current,
+        ...(persisted as Partial<AuthState>),
+        hasCheckedAuth: false,
       }),
     }
   )
