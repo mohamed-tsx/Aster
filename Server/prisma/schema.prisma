@@ -7,6 +7,8 @@ datasource db {
   provider = "postgresql"
 }
 
+// ---------- Identity & RBAC ----------
+
 model User {
   id        String  @id @default(cuid())
   username  String  @unique
@@ -18,6 +20,12 @@ model User {
 
   roleId String
   role   Role   @relation(fields: [roleId], references: [id])
+
+  assignedCases     Case[]
+  documentsUploaded Document[]
+  paymentsReceived  Payment[]  @relation("PaymentsReceived")
+  expensesPaid      Expense[]  @relation("ExpensesPaid")
+  refundsIssued     Refund[]   @relation("RefundsIssued")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -42,4 +50,270 @@ model Permission {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ---------- Case management ----------
+
+model Patient {
+  id             String   @id @default(cuid())
+  firstName      String
+  lastName       String
+  gender         Gender
+  dateOfBirth    DateTime
+  nationality    String
+  passportNumber String
+  passportExpiry DateTime
+  phone          String
+  email          String?
+  address        String?
+
+  cases Case[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Attendant {
+  id                String   @id @default(cuid())
+  firstName         String
+  lastName          String
+  gender            Gender
+  dateOfBirth       DateTime
+  nationality       String
+  passportNumber    String
+  passportExpiry    DateTime
+  phone             String
+  relationToPatient String
+
+  caseId String @unique
+  case   Case   @relation(fields: [caseId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Agency {
+  id            String  @id @default(cuid())
+  name          String  @unique
+  contactPerson String?
+  phone         String?
+  email         String?
+  address       String?
+
+  cases Case[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Case {
+  id           String       @id @default(cuid())
+  caseNumber   String       @unique
+  reachOutType ReachOutType
+  status       CaseStatus   @default(NEW)
+
+  patientId String
+  patient   Patient    @relation(fields: [patientId], references: [id])
+  attendant Attendant?
+
+  agencyId String?
+  agency   Agency? @relation(fields: [agencyId], references: [id])
+
+  assignedToId String?
+  assignedTo   User?   @relation(fields: [assignedToId], references: [id])
+
+  notes String?
+
+  inquiries        HospitalInquiry[]
+  visaApplications VisaApplication[]
+  documents        Document[]
+  expenses         Expense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------- Hospital matching ----------
+
+model Hospital {
+  id            String  @id @default(cuid())
+  name          String
+  city          String
+  specialties   String?
+  contactPerson String?
+  phone         String?
+  email         String?
+
+  inquiries HospitalInquiry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model HospitalInquiry {
+  id     String @id @default(cuid())
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id])
+
+  hospitalId String
+  hospital   Hospital @relation(fields: [hospitalId], references: [id])
+
+  status                HospitalInquiryStatus @default(PENDING)
+  treatmentCostEstimate Decimal?
+  currency              Currency?
+  notes                 String?
+
+  sentAt      DateTime  @default(now())
+  respondedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------- Visa & documents ----------
+
+model VisaApplication {
+  id     String @id @default(cuid())
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id])
+
+  travelerType TravelerType
+  status       VisaStatus   @default(PENDING)
+
+  visaNumber       String?
+  embassyVisitDate DateTime?
+  notes            String?
+
+  payment  Payment?
+  expenses Expense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([caseId, travelerType])
+}
+
+model Document {
+  id     String @id @default(cuid())
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id])
+
+  type     DocumentType
+  fileUrl  String
+  fileName String
+
+  uploadedById String
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+// ---------- Finance ----------
+
+model Payment {
+  id                String          @id @default(cuid())
+  visaApplicationId String          @unique
+  visaApplication   VisaApplication @relation(fields: [visaApplicationId], references: [id])
+
+  amount   Decimal
+  currency Currency
+  feeType  ReachOutType
+
+  receivedById String
+  receivedBy   User   @relation("PaymentsReceived", fields: [receivedById], references: [id])
+
+  paidAt    DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  refunds Refund[]
+}
+
+model Expense {
+  id       String   @id @default(cuid())
+  category String
+  amount   Decimal
+  currency Currency
+  notes    String?
+
+  caseId String?
+  case   Case?   @relation(fields: [caseId], references: [id])
+
+  visaApplicationId String?
+  visaApplication   VisaApplication? @relation(fields: [visaApplicationId], references: [id])
+
+  paidById String
+  paidBy   User   @relation("ExpensesPaid", fields: [paidById], references: [id])
+
+  incurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+}
+
+model Refund {
+  id        String  @id @default(cuid())
+  paymentId String
+  payment   Payment @relation(fields: [paymentId], references: [id])
+
+  amount Decimal
+  reason String
+
+  refundedById String
+  refundedBy   User   @relation("RefundsIssued", fields: [refundedById], references: [id])
+
+  refundedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+}
+
+// ---------- Enums ----------
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum ReachOutType {
+  DIRECT
+  AGENCY
+}
+
+enum CaseStatus {
+  NEW
+  HOSPITAL_MATCHING
+  HOSPITAL_ACCEPTED
+  HOSPITAL_DECLINED
+  VISA_PROCESSING
+  COMPLETED
+  CANCELLED
+}
+
+enum HospitalInquiryStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum TravelerType {
+  PATIENT
+  ATTENDANT
+}
+
+enum VisaStatus {
+  PENDING
+  FEE_PAID
+  EMBASSY_VISITED
+  APPROVED
+  REJECTED
+}
+
+enum DocumentType {
+  PATIENT_PASSPORT
+  ATTENDANT_PASSPORT
+  INVITATION_LETTER
+  VISA_COPY
+  OTHER
+}
+
+enum Currency {
+  USD
+  INR
 }
