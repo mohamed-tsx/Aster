@@ -10,6 +10,7 @@ import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-di
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { useDeleteConfirmation } from "@/hooks/use-delete-confirmation";
 import { usePagination } from "@/hooks/use-pagination";
+import { useRBAC } from "@/hooks/useRBAC";
 import { useAuthStore } from "@/stores/auth-store";
 import { listUsers, deleteUser } from "@/services/users";
 import { getUserDisplayName } from "@/config/navigation";
@@ -17,6 +18,7 @@ import type { AdminUser } from "@/types/user";
 
 export default function UsersPage() {
   const { user: currentUser } = useAuthStore();
+  const { hasPermission } = useRBAC();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const { page, limit, setPage, setLimit } = usePagination();
@@ -72,12 +74,14 @@ export default function UsersPage() {
             <Button variant="outline" size="icon" onClick={fetchUsers} aria-label="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
-            <Button asChild>
-              <Link href="/dashboard/users/new">
-                <Plus className="mr-2 h-4 w-4" />
-                Add user
-              </Link>
-            </Button>
+            {hasPermission("CREATE_USERS") && (
+              <Button asChild>
+                <Link href="/dashboard/users/new">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add user
+                </Link>
+              </Button>
+            )}
           </>
         }
       />

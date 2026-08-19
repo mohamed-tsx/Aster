@@ -6,11 +6,14 @@ import { CreateUserForm } from "@/components/users/create-user-form";
 import { createUser } from "@/services/users";
 import { getErrorMessage } from "@/utils/api";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissionGuard } from "@/hooks/use-permission-guard";
 import { buildCreatePayload } from "@/lib/validations/user";
 
 export default function NewUserPage() {
   const router = useRouter();
   const toast = useToast();
+  const allowed = usePermissionGuard("CREATE_USERS");
+  if (!allowed) return null;
 
   const handleCreate = async (
     payload: ReturnType<typeof buildCreatePayload>,

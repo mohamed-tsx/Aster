@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/users/page-header";
 import { EditUserForm } from "@/components/users/edit-user-form";
 import { useUserDetail } from "@/hooks/use-user-detail";
+import { usePermissionGuard } from "@/hooks/use-permission-guard";
 import { updateUser } from "@/services/users";
 import { getErrorMessage } from "@/utils/api";
 import { buildUpdatePayload } from "@/lib/validations/user";
@@ -17,6 +18,8 @@ type PageProps = { params: Promise<{ id: string }> };
 export default function EditUserPage({ params }: PageProps) {
   const { id } = use(params);
   const router = useRouter();
+  const allowed = usePermissionGuard("UPDATE_USERS");
+  if (!allowed) return null;
   const { user, loading } = useUserDetail(id);
 
   const handleUpdate = async (

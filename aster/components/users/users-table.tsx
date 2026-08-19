@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { UserRoleBadge } from "@/components/users/user-role-badge";
+import { useRBAC } from "@/hooks/useRBAC";
 import { getUserDisplayName, getUserInitials } from "@/config/navigation";
 import { getUserAvatarUrl } from "@/utils/imageUtils";
 import type { AdminUser } from "@/types/user";
@@ -51,6 +52,8 @@ export function UsersTable({
   currentUserId,
   onDelete,
 }: UsersTableProps) {
+  const { hasPermission } = useRBAC();
+
   if (loading) {
     return (
       <div className="space-y-2 rounded-lg border p-4">
@@ -142,21 +145,27 @@ export function UsersTable({
                           View details
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href={`/dashboard/users/${user.id}/edit`}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        disabled={isSelf}
-                        onClick={() => onDelete(user)}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
+                      {hasPermission("UPDATE_USERS") && (
+                        <DropdownMenuItem asChild>
+                          <Link href={`/dashboard/users/${user.id}/edit`}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
+                      {hasPermission("DELETE_USERS") && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            disabled={isSelf}
+                            onClick={() => onDelete(user)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

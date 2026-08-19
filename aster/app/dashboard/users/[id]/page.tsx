@@ -9,6 +9,7 @@ import { UserDetailView } from "@/components/users/user-detail-view";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { useDeleteConfirmation } from "@/hooks/use-delete-confirmation";
 import { useUserDetail } from "@/hooks/use-user-detail";
+import { useRBAC } from "@/hooks/useRBAC";
 import { deleteUser } from "@/services/users";
 import { useAuthStore } from "@/stores/auth-store";
 import { getUserDisplayName } from "@/config/navigation";
@@ -21,6 +22,7 @@ export default function UserDetailPage({ params }: PageProps) {
   const router = useRouter();
   const { user: currentUser } = useAuthStore();
   const { user, loading } = useUserDetail(id);
+  const { hasPermission } = useRBAC();
 
   const isSelf = currentUser?.id === id;
 
@@ -57,22 +59,26 @@ export default function UserDetailPage({ params }: PageProps) {
         backHref="/dashboard/users"
         actions={
           <>
-            <Button variant="outline" asChild>
-              <Link href={`/dashboard/users/${id}/edit`}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </Link>
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={isSelf}
-              onClick={() =>
-                handleDeleteClick({ id: user.id, name: displayName })
-              }
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
+            {hasPermission("UPDATE_USERS") && (
+              <Button variant="outline" asChild>
+                <Link href={`/dashboard/users/${id}/edit`}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </Link>
+              </Button>
+            )}
+            {hasPermission("DELETE_USERS") && (
+              <Button
+                variant="destructive"
+                disabled={isSelf}
+                onClick={() =>
+                  handleDeleteClick({ id: user.id, name: displayName })
+                }
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
+            )}
           </>
         }
       />
