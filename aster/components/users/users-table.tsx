@@ -71,9 +71,11 @@ export function UsersTable({
         <p className="mt-1 text-sm text-muted-foreground">
           Try adjusting filters or create a new user.
         </p>
-        <Button className="mt-4" asChild>
-          <Link href="/dashboard/users/new">Add user</Link>
-        </Button>
+        {hasPermission("CREATE_USERS") && (
+          <Button className="mt-4" asChild>
+            <Link href="/dashboard/users/new">Add user</Link>
+          </Button>
+        )}
       </div>
     );
   }

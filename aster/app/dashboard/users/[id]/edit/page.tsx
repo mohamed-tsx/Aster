@@ -19,8 +19,9 @@ export default function EditUserPage({ params }: PageProps) {
   const { id } = use(params);
   const router = useRouter();
   const allowed = usePermissionGuard("UPDATE_USERS");
-  if (!allowed) return null;
   const { user, loading } = useUserDetail(id);
+
+  if (!allowed) return null;
 
   const handleUpdate = async (
     payload: ReturnType<typeof buildUpdatePayload>,
