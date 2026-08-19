@@ -28,7 +28,7 @@ export type CreateUserPayload = {
   password: string;
   firstName: string;
   lastName: string;
-  role: string;
+  roleId: string;
 };
 
 export type UpdateUserPayload = {
@@ -37,5 +37,5 @@ export type UpdateUserPayload = {
   password?: string;
   firstName?: string;
   lastName?: string;
-  role?: string;
+  roleId?: string;
 };

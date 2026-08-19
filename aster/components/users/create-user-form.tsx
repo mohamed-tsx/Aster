@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import { Form } from "@/components/ui/form";
@@ -11,9 +12,12 @@ import {
 } from "@/lib/validations/user";
 import { AccountFields } from "@/components/users/user-form-fields";
 import { useToast } from "@/hooks/use-toast";
+import { useRBAC } from "@/hooks/useRBAC";
+import { listRoles, getErrorMessage } from "@/services/roles";
+import type { Role } from "@/types/role";
 
 const defaultValues: CreateUserFormValues = {
-  role: "",
+  roleId: "",
   firstName: "",
   lastName: "",
   username: "",
@@ -31,7 +35,21 @@ export function CreateUserForm({
   submitLabel = "Create user",
 }: CreateUserFormProps) {
   const toast = useToast();
+  const { hasRole, permissions } = useRBAC();
   const form = useForm<CreateUserFormValues>({ defaultValues });
+  const [roles, setRoles] = useState<Role[]>([]);
+
+  useEffect(() => {
+    listRoles()
+      .then((all) => {
+        const grantable = all.filter(
+          (r) => hasRole("ADMIN") || r.permissions.every((p) => permissions.includes(p.name)),
+        );
+        setRoles(grantable);
+      })
+      .catch((error) => toast.error("Failed to load roles", getErrorMessage(error)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Form {...form}>
@@ -49,7 +67,7 @@ export function CreateUserForm({
         })}
         className="space-y-6"
       >
-        <AccountFields form={form} isCreate />
+        <AccountFields form={form} isCreate roles={roles} />
         <div className="flex justify-end">
           <Button type="submit" disabled={form.formState.isSubmitting}>
             {form.formState.isSubmitting && (

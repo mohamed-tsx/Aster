@@ -24,7 +24,7 @@ export const passwordSchema = z
   .regex(/[0-9]/, "Password must include a number");
 
 export const createUserSchema = z.object({
-  role: z.string().min(1, "Role is required"),
+  roleId: z.string().min(1, "Role is required"),
   firstName: z.string().min(1, "First name is required").max(100),
   lastName: z.string().min(1, "Last name is required").max(100),
   username: usernameSchema,
@@ -35,7 +35,7 @@ export const createUserSchema = z.object({
 export type CreateUserFormValues = z.infer<typeof createUserSchema>;
 
 export const updateUserSchema = z.object({
-  role: z.string().min(1, "Role is required"),
+  roleId: z.string().min(1, "Role is required"),
   firstName: z.string().min(1, "First name is required").max(100),
   lastName: z.string().min(1, "Last name is required").max(100),
   username: usernameSchema,
@@ -47,7 +47,7 @@ export type UpdateUserFormValues = z.infer<typeof updateUserSchema>;
 
 export function buildCreatePayload(values: CreateUserFormValues) {
   return {
-    role: values.role,
+    roleId: values.roleId,
     firstName: values.firstName.trim(),
     lastName: values.lastName.trim(),
     username: values.username.trim(),
@@ -58,7 +58,7 @@ export function buildCreatePayload(values: CreateUserFormValues) {
 
 export function buildUpdatePayload(values: UpdateUserFormValues) {
   return {
-    role: values.role,
+    roleId: values.roleId,
     firstName: values.firstName.trim(),
     lastName: values.lastName.trim(),
     username: values.username.trim(),

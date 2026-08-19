@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import { Form } from "@/components/ui/form";
@@ -13,6 +14,8 @@ import type { AdminUser } from "@/types/user";
 import { AccountFields } from "@/components/users/user-form-fields";
 import { useToast } from "@/hooks/use-toast";
 import { useRBAC } from "@/hooks/useRBAC";
+import { listRoles, getErrorMessage } from "@/services/roles";
+import type { Role } from "@/types/role";
 
 type EditUserFormProps = {
   user: AdminUser;
@@ -22,7 +25,7 @@ type EditUserFormProps = {
 
 function mapUserToForm(user: AdminUser): UpdateUserFormValues {
   return {
-    role: user.role.name,
+    roleId: user.role.id,
     firstName: user.firstName,
     lastName: user.lastName,
     username: user.username,
@@ -37,10 +40,31 @@ export function EditUserForm({
   submitLabel = "Save changes",
 }: EditUserFormProps) {
   const toast = useToast();
-  const { hasPermission } = useRBAC();
+  const { hasRole, permissions } = useRBAC();
   const form = useForm<UpdateUserFormValues>({
     defaultValues: mapUserToForm(user),
   });
+  const [roles, setRoles] = useState<Role[]>([]);
+
+  useEffect(() => {
+    listRoles()
+      .then((all) => {
+        const grantable = all.filter(
+          (r) => hasRole("ADMIN") || r.permissions.every((p) => permissions.includes(p.name)),
+        );
+        const hasCurrent = grantable.some((r) => r.id === user.role.id);
+        setRoles(
+          hasCurrent
+            ? grantable
+            : [
+                ...grantable,
+                { ...user.role, permissions: [], _count: { users: 0 } } as unknown as Role,
+              ],
+        );
+      })
+      .catch((error) => toast.error("Failed to load roles", getErrorMessage(error)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Form {...form}>
@@ -61,7 +85,8 @@ export function EditUserForm({
         <AccountFields
           form={form}
           isCreate={false}
-          lockedRole={hasPermission("MANAGE_ROLES") ? undefined : user.role.name}
+          roles={roles}
+          lockedRole={user.role.name}
         />
         <div className="flex justify-end">
           <Button type="submit" disabled={form.formState.isSubmitting}>

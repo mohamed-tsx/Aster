@@ -9,25 +9,34 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type {
   CreateUserFormValues,
   UpdateUserFormValues,
 } from "@/lib/validations/user";
+import type { Role } from "@/types/role";
 import { UsernameField } from "@/components/users/username-field";
 import { PasswordField } from "@/components/users/password-field";
-
-type FormValues = CreateUserFormValues | UpdateUserFormValues;
 
 export function AccountFields({
   form,
   isCreate,
+  roles,
   lockedRole,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   form: UseFormReturn<any>;
   isCreate: boolean;
-  /** When set, the role field is shown read-only instead of editable */
+  /** Roles the current user is allowed to grant */
+  roles: Role[];
+  /** Shown when `roles` is empty and there's a current role to display read-only */
   lockedRole?: string;
 }) {
   return (
@@ -36,18 +45,38 @@ export function AccountFields({
         <CardTitle className="text-base">Account</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-2">
-        {lockedRole ? (
+        {roles.length > 0 ? (
+          <FormField
+            control={form.control}
+            name="roleId"
+            render={({ field }) => (
+              <FormItem className="sm:col-span-2">
+                <FormLabel>Role</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {roles.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ) : (
           <div className="sm:col-span-2">
             <p className="text-sm font-medium">Role</p>
-            <p className="text-sm text-muted-foreground">{lockedRole}</p>
+            <p className="text-sm text-muted-foreground">
+              {lockedRole ?? "No roles available to assign"}
+            </p>
           </div>
-        ) : (
-          <TextField
-            form={form}
-            name="role"
-            label="Role"
-            className="sm:col-span-2"
-          />
         )}
 
         <TextField form={form} name="firstName" label="First name" />
