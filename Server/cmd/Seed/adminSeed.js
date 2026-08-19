@@ -28,8 +28,25 @@ async function main() {
     "MANAGE_ROLES",
   ];
 
+  const caseManagementPermissions = [
+    "VIEW_CASES",
+    "CREATE_CASES",
+    "UPDATE_CASES",
+    "DELETE_CASES",
+    "MANAGE_HOSPITALS",
+    "MANAGE_AGENCIES",
+    "VIEW_FINANCE",
+    "MANAGE_FINANCE",
+    "ISSUE_REFUNDS",
+  ];
+
+  const allPermissionNames = [
+    ...userManagementPermissions,
+    ...caseManagementPermissions,
+  ];
+
   const permissions = await Promise.all(
-    userManagementPermissions.map((name) =>
+    allPermissionNames.map((name) =>
       Prisma.permission.upsert({
         where: { name },
         update: {},
