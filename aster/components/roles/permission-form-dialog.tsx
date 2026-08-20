@@ -54,7 +54,14 @@ export function PermissionFormDialog({
           <form
             onSubmit={form.handleSubmit(async (values) => {
               const parsed = permissionSchema.safeParse(values);
-              if (!parsed.success) return;
+              if (!parsed.success) {
+                for (const issue of parsed.error.issues) {
+                  form.setError(issue.path[0] as keyof PermissionFormValues, {
+                    message: issue.message,
+                  });
+                }
+                return;
+              }
               await onSubmit(parsed.data);
             })}
             className="space-y-4"

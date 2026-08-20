@@ -52,7 +52,7 @@ export const updateAgency = async (agencyId, data) => {
   const updateData = {};
 
   if (data.name !== undefined) {
-    if (!data.name?.trim()) {
+    if (typeof data.name !== "string" || !data.name.trim()) {
       throw new AppError("Agency name is required", 400, "VALIDATION_ERROR");
     }
     const dup = await Prisma.agency.findFirst({

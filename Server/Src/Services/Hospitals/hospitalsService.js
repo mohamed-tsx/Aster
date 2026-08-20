@@ -51,7 +51,7 @@ export const updateHospital = async (hospitalId, data) => {
   const updateData = {};
 
   if (data.name !== undefined) {
-    if (!data.name?.trim()) {
+    if (typeof data.name !== "string" || !data.name.trim()) {
       throw new AppError("Hospital name is required", 400, "VALIDATION_ERROR");
     }
     updateData.name = data.name.trim();
