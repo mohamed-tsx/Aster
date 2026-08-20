@@ -140,6 +140,7 @@ export function CaseForm(props: CaseFormProps) {
   const handleSubmit = form.handleSubmit(async (values) => {
     const validationError = validateCaseForm(values, {
       selectedPatientId: selectedPatient?.id ?? null,
+      mode,
     });
     if (validationError) {
       toast.error("Validation error", validationError);

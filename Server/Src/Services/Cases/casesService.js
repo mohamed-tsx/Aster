@@ -327,6 +327,16 @@ export const updateCase = async (caseId, data) => {
 
   const patientUpdateData = pickFields(data, PATIENT_FIELDS);
   if (Object.keys(patientUpdateData).length > 0) {
+    // Reject only required fields that are actually present in this update payload
+    // and falsy/empty — not "all required fields must be present" — so a partial
+    // API update that doesn't touch a given required field isn't spuriously
+    // rejected. In practice the frontend always sends the full form state, so this
+    // validates the whole required set on every real edit.
+    for (const field of PATIENT_REQUIRED_FIELDS) {
+      if (field in patientUpdateData && !patientUpdateData[field]) {
+        throw new AppError(`Patient ${field} is required`, 400, "VALIDATION_ERROR");
+      }
+    }
     await Prisma.patient.update({
       where: { id: existing.patientId },
       data: patientUpdateData,

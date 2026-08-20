@@ -64,9 +64,17 @@ const ATTENDANT_REQUIRED: (keyof CaseFormValues)[] = [
  */
 export function validateCaseForm(
   values: CaseFormValues,
-  { selectedPatientId }: { selectedPatientId: string | null },
+  {
+    selectedPatientId,
+    mode,
+  }: { selectedPatientId: string | null; mode?: "create" | "edit" },
 ): string | null {
-  if (!selectedPatientId) {
+  // Patient fields are editable (and thus required) whenever they're actually
+  // rendered — see the `(mode === "edit" || !selectedPatient)` guard in
+  // case-form.tsx. In edit mode there's no patient-swap UI, so `selectedPatientId`
+  // is always truthy there; without this, required-field checks never ran in edit
+  // mode and a required patient field could be blanked out and saved silently.
+  if (mode === "edit" || !selectedPatientId) {
     for (const field of PATIENT_REQUIRED) {
       if (!values[field]) {
         return `Patient ${String(field).replace("patient", "").toLowerCase()} is required`;
