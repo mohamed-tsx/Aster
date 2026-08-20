@@ -73,8 +73,18 @@ const navigation: NavigationItem[] = [
     href: "/dashboard/users",
     icon: Users,
     children: [
-      { name: "All Users", href: "/dashboard/users", icon: List, permission: "VIEW_USERS" },
-      { name: "Add New User", href: "/dashboard/users/new", icon: UserPlus, permission: "CREATE_USERS" },
+      {
+        name: "All Users",
+        href: "/dashboard/users",
+        icon: List,
+        permission: "VIEW_USERS",
+      },
+      {
+        name: "Add New User",
+        href: "/dashboard/users/new",
+        icon: UserPlus,
+        permission: "CREATE_USERS",
+      },
     ],
   },
   {
@@ -125,7 +135,11 @@ export default function Sidebar() {
         : null;
 
       if (item.children && (!children || children.length === 0)) return null;
-      if (!item.children && item.permission && !hasPermission(item.permission)) {
+      if (
+        !item.children &&
+        item.permission &&
+        !hasPermission(item.permission)
+      ) {
         return null;
       }
 
@@ -414,7 +428,7 @@ export default function Sidebar() {
                   height={45}
                 />
                 <div className="text-primary">
-                  <h1 className="text-xl font-semibold">Astra</h1>
+                  <h1 className="text-xl font-semibold">Aster</h1>
                   <p className="text-[10px]">We'll Treat You Well</p>
                 </div>
               </div>
