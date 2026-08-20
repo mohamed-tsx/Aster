@@ -97,3 +97,84 @@ export const inquiryResponseSchema = z.object({
 });
 
 export type InquiryResponseFormValues = z.infer<typeof inquiryResponseSchema>;
+
+/**
+ * Backend contract: patient fields are bare (`firstName`, `lastName`, ...); attendant
+ * fields are sent with an `attendant` prefix (`attendantFirstName`, ...) since both
+ * sit flat in the same JSON body — see `Server/Src/Services/Cases/casesService.js`'s
+ * `ATTENDANT_FIELD_MAP`.
+ */
+export function buildCaseCreatePayload(
+  values: CaseFormValues,
+  selectedPatientId: string | null,
+): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    reachOutType: values.reachOutType,
+    agencyId: values.reachOutType === "AGENCY" ? values.agencyId : undefined,
+    assignedToId: values.assignedToId || undefined,
+    notes: values.notes?.trim() || undefined,
+    hasAttendant: values.hasAttendant,
+  };
+
+  if (selectedPatientId) {
+    payload.patientId = selectedPatientId;
+  } else {
+    payload.firstName = values.patientFirstName;
+    payload.lastName = values.patientLastName;
+    payload.gender = values.patientGender;
+    payload.dateOfBirth = values.patientDateOfBirth;
+    payload.nationality = values.patientNationality;
+    payload.passportNumber = values.patientPassportNumber;
+    payload.passportExpiry = values.patientPassportExpiry;
+    payload.phone = values.patientPhone;
+    payload.email = values.patientEmail?.trim() || undefined;
+    payload.address = values.patientAddress?.trim() || undefined;
+  }
+
+  if (values.hasAttendant) {
+    payload.attendantFirstName = values.attendantFirstName;
+    payload.attendantLastName = values.attendantLastName;
+    payload.attendantGender = values.attendantGender;
+    payload.attendantDateOfBirth = values.attendantDateOfBirth;
+    payload.attendantNationality = values.attendantNationality;
+    payload.attendantPassportNumber = values.attendantPassportNumber;
+    payload.attendantPassportExpiry = values.attendantPassportExpiry;
+    payload.attendantPhone = values.attendantPhone;
+    payload.attendantRelationToPatient = values.attendantRelationToPatient;
+  }
+
+  return payload;
+}
+
+export function buildCaseUpdatePayload(values: CaseFormValues): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    agencyId: values.reachOutType === "AGENCY" ? values.agencyId : undefined,
+    assignedToId: values.assignedToId || undefined,
+    notes: values.notes?.trim() || undefined,
+    hasAttendant: values.hasAttendant,
+    firstName: values.patientFirstName,
+    lastName: values.patientLastName,
+    gender: values.patientGender,
+    dateOfBirth: values.patientDateOfBirth,
+    nationality: values.patientNationality,
+    passportNumber: values.patientPassportNumber,
+    passportExpiry: values.patientPassportExpiry,
+    phone: values.patientPhone,
+    email: values.patientEmail?.trim() || undefined,
+    address: values.patientAddress?.trim() || undefined,
+  };
+
+  if (values.hasAttendant) {
+    payload.attendantFirstName = values.attendantFirstName;
+    payload.attendantLastName = values.attendantLastName;
+    payload.attendantGender = values.attendantGender;
+    payload.attendantDateOfBirth = values.attendantDateOfBirth;
+    payload.attendantNationality = values.attendantNationality;
+    payload.attendantPassportNumber = values.attendantPassportNumber;
+    payload.attendantPassportExpiry = values.attendantPassportExpiry;
+    payload.attendantPhone = values.attendantPhone;
+    payload.attendantRelationToPatient = values.attendantRelationToPatient;
+  }
+
+  return payload;
+}
