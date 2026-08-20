@@ -40,6 +40,8 @@ import {
   ChevronsUpDown,
   List,
   UserPlus,
+  Building2,
+  Handshake,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -81,6 +83,20 @@ const navigation: NavigationItem[] = [
     icon: ShieldCheck,
     children: null,
     permission: "MANAGE_ROLES",
+  },
+  {
+    name: "Hospitals",
+    href: "/dashboard/hospitals",
+    icon: Building2,
+    children: null,
+    permission: "MANAGE_HOSPITALS",
+  },
+  {
+    name: "Agencies",
+    href: "/dashboard/agencies",
+    icon: Handshake,
+    children: null,
+    permission: "MANAGE_AGENCIES",
   },
   {
     name: "Settings",
