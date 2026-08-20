@@ -5,6 +5,9 @@ import {
   getCaseCtrl,
   createCaseCtrl,
   updateCaseCtrl,
+  sendInquiryCtrl,
+  respondInquiryCtrl,
+  cancelCaseCtrl,
 } from "../../Controllers/Cases/casesController.js";
 import Verify from "../../Middlewares/Auth/Verify.js";
 import RequirePermission from "../../Middlewares/Auth/RequirePermission.js";
@@ -25,5 +28,12 @@ router.get("/", RequirePermission("VIEW_CASES"), listCasesCtrl);
 router.get("/:id", RequirePermission("VIEW_CASES"), getCaseCtrl);
 router.post("/", RequirePermission("CREATE_CASES"), createCaseCtrl);
 router.put("/:id", RequirePermission("UPDATE_CASES"), updateCaseCtrl);
+router.patch("/:id/cancel", RequirePermission("UPDATE_CASES"), cancelCaseCtrl);
+router.post("/:id/inquiries", RequirePermission("UPDATE_CASES"), sendInquiryCtrl);
+router.patch(
+  "/:id/inquiries/:inquiryId",
+  RequirePermission("UPDATE_CASES"),
+  respondInquiryCtrl,
+);
 
 export default router;

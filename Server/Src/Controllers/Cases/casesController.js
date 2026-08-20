@@ -5,6 +5,9 @@ import {
   getCaseById,
   createCase,
   updateCase,
+  sendInquiry,
+  respondToInquiry,
+  cancelCase,
 } from "../../Services/Cases/casesService.js";
 import { sendSuccess, sendCreated } from "../../Utils/Response/apiResponse.js";
 
@@ -35,4 +38,19 @@ export const createCaseCtrl = asyncHandler(async (req, res) => {
 export const updateCaseCtrl = asyncHandler(async (req, res) => {
   const kase = await updateCase(req.params.id, req.body);
   return sendSuccess(res, "Case updated successfully", kase);
+});
+
+export const sendInquiryCtrl = asyncHandler(async (req, res) => {
+  const inquiry = await sendInquiry(req.params.id, req.body);
+  return sendCreated(res, "Hospital inquiry sent successfully", inquiry);
+});
+
+export const respondInquiryCtrl = asyncHandler(async (req, res) => {
+  const inquiry = await respondToInquiry(req.params.id, req.params.inquiryId, req.body);
+  return sendSuccess(res, "Hospital inquiry response recorded", inquiry);
+});
+
+export const cancelCaseCtrl = asyncHandler(async (req, res) => {
+  const kase = await cancelCase(req.params.id);
+  return sendSuccess(res, "Case cancelled successfully", kase);
 });

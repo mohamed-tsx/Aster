@@ -351,3 +351,127 @@ export const updateCase = async (caseId, data) => {
 
   return updated;
 };
+
+/**
+ * @param {string} caseId
+ * @param {{ hospitalId: string, notes?: string }} data
+ */
+export const sendInquiry = async (caseId, data) => {
+  const kase = await Prisma.case.findUnique({ where: { id: caseId } });
+  if (!kase) {
+    throw new AppError("Case not found", 404, "NOT_FOUND");
+  }
+  if (kase.status === "CANCELLED") {
+    throw new AppError("Cannot send an inquiry for a cancelled case", 400, "VALIDATION_ERROR");
+  }
+
+  const { hospitalId, notes } = data;
+  if (!hospitalId) {
+    throw new AppError("hospitalId is required", 400, "VALIDATION_ERROR");
+  }
+
+  const hospital = await Prisma.hospital.findUnique({ where: { id: hospitalId } });
+  if (!hospital) {
+    throw new AppError("Hospital not found", 404, "NOT_FOUND");
+  }
+
+  const pending = await Prisma.hospitalInquiry.findFirst({
+    where: { caseId, status: "PENDING" },
+  });
+  if (pending) {
+    throw new AppError(
+      "This case already has a pending inquiry. Wait for a response before sending another.",
+      409,
+      "CONFLICT",
+    );
+  }
+
+  const [inquiry] = await Prisma.$transaction([
+    Prisma.hospitalInquiry.create({
+      data: { caseId, hospitalId, notes: notes || null },
+      include: { hospital: true },
+    }),
+    Prisma.case.update({
+      where: { id: caseId },
+      data: { status: "HOSPITAL_MATCHING" },
+    }),
+  ]);
+
+  return inquiry;
+};
+
+/**
+ * @param {string} caseId
+ * @param {string} inquiryId
+ * @param {{ status: "ACCEPTED" | "DECLINED", treatmentCostEstimate?: number, currency?: string, notes?: string }} data
+ */
+export const respondToInquiry = async (caseId, inquiryId, data) => {
+  const inquiry = await Prisma.hospitalInquiry.findUnique({ where: { id: inquiryId } });
+  if (!inquiry || inquiry.caseId !== caseId) {
+    throw new AppError("Hospital inquiry not found", 404, "NOT_FOUND");
+  }
+  if (inquiry.status !== "PENDING") {
+    throw new AppError("This inquiry has already been responded to", 400, "VALIDATION_ERROR");
+  }
+
+  const { status, treatmentCostEstimate, currency, notes } = data;
+  if (!["ACCEPTED", "DECLINED"].includes(status)) {
+    throw new AppError("status must be ACCEPTED or DECLINED", 400, "VALIDATION_ERROR");
+  }
+  if (
+    treatmentCostEstimate !== undefined &&
+    treatmentCostEstimate !== null &&
+    treatmentCostEstimate !== "" &&
+    !currency
+  ) {
+    throw new AppError(
+      "currency is required when treatmentCostEstimate is provided",
+      400,
+      "VALIDATION_ERROR",
+    );
+  }
+
+  const caseStatus = status === "ACCEPTED" ? "HOSPITAL_ACCEPTED" : "HOSPITAL_DECLINED";
+
+  const [updatedInquiry] = await Prisma.$transaction([
+    Prisma.hospitalInquiry.update({
+      where: { id: inquiryId },
+      data: {
+        status,
+        treatmentCostEstimate:
+          treatmentCostEstimate !== undefined && treatmentCostEstimate !== ""
+            ? treatmentCostEstimate
+            : undefined,
+        currency: currency || undefined,
+        notes: notes !== undefined ? notes || null : undefined,
+        respondedAt: new Date(),
+      },
+      include: { hospital: true },
+    }),
+    Prisma.case.update({
+      where: { id: caseId },
+      data: { status: caseStatus },
+    }),
+  ]);
+
+  return updatedInquiry;
+};
+
+/**
+ * @param {string} caseId
+ */
+export const cancelCase = async (caseId) => {
+  const kase = await Prisma.case.findUnique({ where: { id: caseId } });
+  if (!kase) {
+    throw new AppError("Case not found", 404, "NOT_FOUND");
+  }
+  if (kase.status === "CANCELLED") {
+    throw new AppError("This case is already cancelled", 400, "VALIDATION_ERROR");
+  }
+
+  return Prisma.case.update({
+    where: { id: caseId },
+    data: { status: "CANCELLED" },
+    include: CASE_DETAIL_INCLUDE,
+  });
+};
