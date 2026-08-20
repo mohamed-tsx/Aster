@@ -170,7 +170,7 @@ export function CaseForm(props: CaseFormProps) {
           <PatientSearch selectedPatient={selectedPatient} onSelect={setSelectedPatient} />
         )}
 
-        {!selectedPatient && <PatientFields form={form} />}
+        {(mode === "edit" || !selectedPatient) && <PatientFields form={form} />}
 
         <AttendantFields form={form} />
 
