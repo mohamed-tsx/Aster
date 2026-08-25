@@ -18,6 +18,7 @@ import hospitalsRoutes from "../../Src/Routes/Hospitals/hospitalsRoute.js";
 import agenciesRoutes from "../../Src/Routes/Agencies/agenciesRoute.js";
 import casesRoutes from "../../Src/Routes/Cases/casesRoute.js";
 import documentsRoutes from "../../Src/Routes/Documents/documentsRoute.js";
+import accountsRoutes from "../../Src/Routes/Accounts/accountsRoute.js";
 import Verify from "../../Src/Middlewares/Auth/Verify.js";
 
 // Import enhanced error handler middleware
@@ -99,6 +100,7 @@ Server.use("/api/v1/hospitals", hospitalsRoutes);
 Server.use("/api/v1/agencies", agenciesRoutes);
 Server.use("/api/v1/cases", casesRoutes);
 Server.use("/api/v1/cases/:caseId/documents", documentsRoutes);
+Server.use("/api/v1/accounts", accountsRoutes);
 
 // Default route
 Server.get("/", (req, res) => {
