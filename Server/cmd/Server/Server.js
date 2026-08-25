@@ -16,6 +16,7 @@ import rolesRoutes from "../../Src/Routes/Roles/rolesRoute.js";
 import permissionsRoutes from "../../Src/Routes/Permissions/permissionsRoute.js";
 import hospitalsRoutes from "../../Src/Routes/Hospitals/hospitalsRoute.js";
 import agenciesRoutes from "../../Src/Routes/Agencies/agenciesRoute.js";
+import casesRoutes from "../../Src/Routes/Cases/casesRoute.js";
 import Verify from "../../Src/Middlewares/Auth/Verify.js";
 
 // Import enhanced error handler middleware
@@ -95,6 +96,7 @@ Server.use("/api/v1/roles", rolesRoutes);
 Server.use("/api/v1/permissions", permissionsRoutes);
 Server.use("/api/v1/hospitals", hospitalsRoutes);
 Server.use("/api/v1/agencies", agenciesRoutes);
+Server.use("/api/v1/cases", casesRoutes);
 
 // Default route
 Server.get("/", (req, res) => {
