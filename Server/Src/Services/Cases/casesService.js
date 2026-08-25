@@ -25,6 +25,13 @@ const CASE_DETAIL_INCLUDE = {
     orderBy: { sentAt: "desc" },
     include: { hospital: true },
   },
+  visaApplications: {
+    orderBy: { createdAt: "asc" },
+    include: { payment: true },
+  },
+  documents: {
+    orderBy: { createdAt: "desc" },
+  },
 };
 
 const PATIENT_FIELDS = [
@@ -71,7 +78,7 @@ const ATTENDANT_FIELD_MAP = {
 // date (what a native HTML date input, and most API clients, naturally send) is
 // rejected outright. Normalize date-only fields to midnight UTC before they reach
 // Prisma.
-const DATE_ONLY_FIELDS = new Set(["dateOfBirth", "passportExpiry"]);
+const DATE_ONLY_FIELDS = new Set(["dateOfBirth", "passportExpiry", "embassyVisitDate"]);
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const normalizeDateValue = (field, value) => {
@@ -116,6 +123,12 @@ const assertAttendantRequiredFields = (data) => {
 };
 
 const PATIENT_SEARCH_MIN_LENGTH = 4;
+
+// A case can only accept a NEW hospital inquiry in these statuses. Once accepted,
+// its VisaApplication(s) already exist — a second accepted inquiry would attempt to
+// create duplicate rows and crash on VisaApplication's @@unique([caseId,
+// travelerType]) constraint instead of failing cleanly.
+const SENDABLE_CASE_STATUSES = ["NEW", "HOSPITAL_MATCHING", "HOSPITAL_DECLINED"];
 
 /**
  * @param {string} passportNumber
@@ -403,8 +416,12 @@ export const sendInquiry = async (caseId, data) => {
   if (!kase) {
     throw new AppError("Case not found", 404, "NOT_FOUND");
   }
-  if (kase.status === "CANCELLED") {
-    throw new AppError("Cannot send an inquiry for a cancelled case", 400, "VALIDATION_ERROR");
+  if (!SENDABLE_CASE_STATUSES.includes(kase.status)) {
+    throw new AppError(
+      "This case cannot accept a new hospital inquiry in its current status",
+      400,
+      "VALIDATION_ERROR",
+    );
   }
 
   const { hospitalId, notes } = data;
@@ -448,7 +465,10 @@ export const sendInquiry = async (caseId, data) => {
  * @param {{ status: "ACCEPTED" | "DECLINED", treatmentCostEstimate?: number, currency?: string, notes?: string }} data
  */
 export const respondToInquiry = async (caseId, inquiryId, data) => {
-  const kase = await Prisma.case.findUnique({ where: { id: caseId } });
+  const kase = await Prisma.case.findUnique({
+    where: { id: caseId },
+    include: { attendant: true },
+  });
   if (!kase) {
     throw new AppError("Case not found", 404, "NOT_FOUND");
   }
@@ -487,7 +507,7 @@ export const respondToInquiry = async (caseId, inquiryId, data) => {
 
   const caseStatus = status === "ACCEPTED" ? "HOSPITAL_ACCEPTED" : "HOSPITAL_DECLINED";
 
-  const [updatedInquiry] = await Prisma.$transaction([
+  const transactionOps = [
     Prisma.hospitalInquiry.update({
       where: { id: inquiryId },
       data: {
@@ -506,7 +526,24 @@ export const respondToInquiry = async (caseId, inquiryId, data) => {
       where: { id: caseId },
       data: { status: caseStatus },
     }),
-  ]);
+  ];
+
+  if (status === "ACCEPTED") {
+    transactionOps.push(
+      Prisma.visaApplication.create({
+        data: { caseId, travelerType: "PATIENT" },
+      }),
+    );
+    if (kase.attendant) {
+      transactionOps.push(
+        Prisma.visaApplication.create({
+          data: { caseId, travelerType: "ATTENDANT" },
+        }),
+      );
+    }
+  }
+
+  const [updatedInquiry] = await Prisma.$transaction(transactionOps);
 
   return updatedInquiry;
 };
@@ -539,4 +576,195 @@ export const cancelCase = async (caseId) => {
   ]);
 
   return updatedCase;
+};
+
+const TERMINAL_VISA_STATUSES = ["APPROVED", "REJECTED"];
+
+/**
+ * @param {string} caseId
+ * @param {string} visaApplicationId
+ * @param {{ accountId: string, amount: number|string, notes?: string }} data
+ * @param {string} userId
+ */
+export const recordFeePayment = async (caseId, visaApplicationId, data, userId) => {
+  const visaApplication = await Prisma.visaApplication.findUnique({
+    where: { id: visaApplicationId },
+  });
+  if (!visaApplication || visaApplication.caseId !== caseId) {
+    throw new AppError("Visa application not found", 404, "NOT_FOUND");
+  }
+  if (visaApplication.status !== "PENDING") {
+    throw new AppError(
+      "This visa application's fee has already been recorded",
+      400,
+      "VALIDATION_ERROR",
+    );
+  }
+
+  const { accountId, amount, notes } = data;
+  if (!accountId) {
+    throw new AppError("accountId is required", 400, "VALIDATION_ERROR");
+  }
+  if (amount === undefined || amount === null || amount === "" || Number(amount) <= 0) {
+    throw new AppError("amount must be a positive number", 400, "VALIDATION_ERROR");
+  }
+
+  const account = await Prisma.account.findUnique({ where: { id: accountId } });
+  if (!account) {
+    throw new AppError("Account not found", 404, "NOT_FOUND");
+  }
+
+  const kase = await Prisma.case.findUnique({ where: { id: caseId } });
+  if (!kase) {
+    throw new AppError("Case not found", 404, "NOT_FOUND");
+  }
+
+  // Case.status only moves to VISA_PROCESSING on this case's *first* fee payment —
+  // check before creating this one, since after this transaction there will always
+  // be at least one.
+  const alreadyHasPayment = await Prisma.payment.findFirst({
+    where: { visaApplication: { caseId } },
+  });
+  const isFirstPayment = !alreadyHasPayment;
+
+  // NOTE: nesting `accountTransaction: { create }` under this call forces Prisma's
+  // "checked" create-input shape (same issue already documented in this codebase's
+  // `createCase`) — that shape rejects raw scalar FKs (`visaApplicationId`,
+  // `receivedById`) as siblings of a nested relation write, so both must use
+  // `connect` here too. The nested `accountTransaction.create` object itself has no
+  // sibling nested relation, so `accountId`/`createdById` stay as plain scalars
+  // there.
+  const transactionOps = [
+    Prisma.payment.create({
+      data: {
+        visaApplication: { connect: { id: visaApplicationId } },
+        amount,
+        currency: "USD",
+        feeType: kase.reachOutType,
+        receivedBy: { connect: { id: userId } },
+        accountTransaction: {
+          create: {
+            accountId,
+            type: "PAYMENT_RECEIVED",
+            amount,
+            currency: "USD",
+            notes: notes || null,
+            createdById: userId,
+          },
+        },
+      },
+    }),
+    Prisma.visaApplication.update({
+      where: { id: visaApplicationId },
+      data: { status: "FEE_PAID" },
+    }),
+  ];
+  if (isFirstPayment) {
+    transactionOps.push(
+      Prisma.case.update({
+        where: { id: caseId },
+        data: { status: "VISA_PROCESSING" },
+      }),
+    );
+  }
+
+  const [payment] = await Prisma.$transaction(transactionOps);
+  return payment;
+};
+
+/**
+ * @param {string} caseId
+ * @param {string} visaApplicationId
+ * @param {{ embassyVisitDate: string, notes?: string }} data
+ */
+export const markEmbassyVisited = async (caseId, visaApplicationId, data) => {
+  const visaApplication = await Prisma.visaApplication.findUnique({
+    where: { id: visaApplicationId },
+  });
+  if (!visaApplication || visaApplication.caseId !== caseId) {
+    throw new AppError("Visa application not found", 404, "NOT_FOUND");
+  }
+  if (visaApplication.status !== "FEE_PAID") {
+    throw new AppError(
+      "The visa-registration fee must be paid before recording an embassy visit",
+      400,
+      "VALIDATION_ERROR",
+    );
+  }
+
+  const { embassyVisitDate, notes } = data;
+  if (!embassyVisitDate) {
+    throw new AppError("embassyVisitDate is required", 400, "VALIDATION_ERROR");
+  }
+
+  return Prisma.visaApplication.update({
+    where: { id: visaApplicationId },
+    data: {
+      status: "EMBASSY_VISITED",
+      embassyVisitDate: normalizeDateValue("embassyVisitDate", embassyVisitDate),
+      notes: notes !== undefined ? notes || null : undefined,
+    },
+  });
+};
+
+/**
+ * @param {string} caseId
+ * @param {string} visaApplicationId
+ * @param {{ status: "APPROVED"|"REJECTED", visaNumber?: string, notes?: string }} data
+ */
+export const recordVisaOutcome = async (caseId, visaApplicationId, data) => {
+  const visaApplication = await Prisma.visaApplication.findUnique({
+    where: { id: visaApplicationId },
+  });
+  if (!visaApplication || visaApplication.caseId !== caseId) {
+    throw new AppError("Visa application not found", 404, "NOT_FOUND");
+  }
+  if (visaApplication.status !== "EMBASSY_VISITED") {
+    throw new AppError(
+      "The embassy visit must be recorded before a visa outcome",
+      400,
+      "VALIDATION_ERROR",
+    );
+  }
+
+  const { status, visaNumber, notes } = data;
+  if (!TERMINAL_VISA_STATUSES.includes(status)) {
+    throw new AppError("status must be APPROVED or REJECTED", 400, "VALIDATION_ERROR");
+  }
+  if (status === "APPROVED" && !visaNumber?.trim()) {
+    throw new AppError(
+      "visaNumber is required when the visa is approved",
+      400,
+      "VALIDATION_ERROR",
+    );
+  }
+
+  const siblingApplications = await Prisma.visaApplication.findMany({
+    where: { caseId },
+  });
+  const allTerminalAfterThisUpdate = siblingApplications.every((app) =>
+    app.id === visaApplicationId ? true : TERMINAL_VISA_STATUSES.includes(app.status),
+  );
+
+  const transactionOps = [
+    Prisma.visaApplication.update({
+      where: { id: visaApplicationId },
+      data: {
+        status,
+        visaNumber: status === "APPROVED" ? visaNumber.trim() : undefined,
+        notes: notes !== undefined ? notes || null : undefined,
+      },
+    }),
+  ];
+  if (allTerminalAfterThisUpdate) {
+    transactionOps.push(
+      Prisma.case.update({
+        where: { id: caseId },
+        data: { status: "COMPLETED" },
+      }),
+    );
+  }
+
+  const [updatedVisaApplication] = await Prisma.$transaction(transactionOps);
+  return updatedVisaApplication;
 };

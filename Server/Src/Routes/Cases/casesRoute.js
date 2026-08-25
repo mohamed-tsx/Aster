@@ -8,6 +8,9 @@ import {
   sendInquiryCtrl,
   respondInquiryCtrl,
   cancelCaseCtrl,
+  recordFeePaymentCtrl,
+  markEmbassyVisitedCtrl,
+  recordVisaOutcomeCtrl,
 } from "../../Controllers/Cases/casesController.js";
 import Verify from "../../Middlewares/Auth/Verify.js";
 import RequirePermission from "../../Middlewares/Auth/RequirePermission.js";
@@ -34,6 +37,21 @@ router.patch(
   "/:id/inquiries/:inquiryId",
   RequirePermission("UPDATE_CASES"),
   respondInquiryCtrl,
+);
+router.post(
+  "/:id/visa-applications/:visaApplicationId/fee-payment",
+  RequirePermission("MANAGE_FINANCE"),
+  recordFeePaymentCtrl,
+);
+router.patch(
+  "/:id/visa-applications/:visaApplicationId/embassy-visit",
+  RequirePermission("UPDATE_CASES"),
+  markEmbassyVisitedCtrl,
+);
+router.patch(
+  "/:id/visa-applications/:visaApplicationId/outcome",
+  RequirePermission("UPDATE_CASES"),
+  recordVisaOutcomeCtrl,
 );
 
 export default router;
