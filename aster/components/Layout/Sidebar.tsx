@@ -42,6 +42,8 @@ import {
   UserPlus,
   Building2,
   Handshake,
+  ClipboardList,
+  FilePlus2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -67,6 +69,15 @@ const navigation: NavigationItem[] = [
     icon: LayoutDashboard,
     badge: null,
     children: null,
+  },
+  {
+    name: "Cases",
+    href: "/dashboard/cases",
+    icon: ClipboardList,
+    children: [
+      { name: "All Cases", href: "/dashboard/cases", icon: List, permission: "VIEW_CASES" },
+      { name: "Add New Case", href: "/dashboard/cases/new", icon: FilePlus2, permission: "CREATE_CASES" },
+    ],
   },
   {
     name: "Users",
