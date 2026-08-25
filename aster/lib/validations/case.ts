@@ -106,6 +106,13 @@ export const inquiryResponseSchema = z.object({
 
 export type InquiryResponseFormValues = z.infer<typeof inquiryResponseSchema>;
 
+export const sendInquirySchema = z.object({
+  hospitalId: z.string().min(1, "Select a hospital"),
+  notes: z.string().max(1000).optional(),
+});
+
+export type SendInquiryFormValues = z.infer<typeof sendInquirySchema>;
+
 /**
  * Backend contract: patient fields are bare (`firstName`, `lastName`, ...); attendant
  * fields are sent with an `attendant` prefix (`attendantFirstName`, ...) since both
