@@ -657,6 +657,7 @@ export const recordFeePayment = async (caseId, visaApplicationId, data, userId) 
     Prisma.visaApplication.update({
       where: { id: visaApplicationId },
       data: { status: "FEE_PAID" },
+      include: { payment: true },
     }),
   ];
   if (isFirstPayment) {
@@ -668,8 +669,8 @@ export const recordFeePayment = async (caseId, visaApplicationId, data, userId) 
     );
   }
 
-  const [payment] = await Prisma.$transaction(transactionOps);
-  return payment;
+  const [, updatedVisaApplication] = await Prisma.$transaction(transactionOps);
+  return updatedVisaApplication;
 };
 
 /**
@@ -704,6 +705,7 @@ export const markEmbassyVisited = async (caseId, visaApplicationId, data) => {
       embassyVisitDate: normalizeDateValue("embassyVisitDate", embassyVisitDate),
       notes: notes !== undefined ? notes || null : undefined,
     },
+    include: { payment: true },
   });
 };
 
@@ -754,6 +756,7 @@ export const recordVisaOutcome = async (caseId, visaApplicationId, data) => {
         visaNumber: status === "APPROVED" ? visaNumber.trim() : undefined,
         notes: notes !== undefined ? notes || null : undefined,
       },
+      include: { payment: true },
     }),
   ];
   if (allTerminalAfterThisUpdate) {

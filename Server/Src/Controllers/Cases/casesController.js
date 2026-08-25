@@ -61,13 +61,13 @@ export const cancelCaseCtrl = asyncHandler(async (req, res) => {
 });
 
 export const recordFeePaymentCtrl = asyncHandler(async (req, res) => {
-  const payment = await recordFeePayment(
+  const visaApplication = await recordFeePayment(
     req.params.id,
     req.params.visaApplicationId,
     req.body,
     req.user.id,
   );
-  return sendCreated(res, "Fee payment recorded successfully", payment);
+  return sendCreated(res, "Fee payment recorded successfully", visaApplication);
 });
 
 export const markEmbassyVisitedCtrl = asyncHandler(async (req, res) => {
