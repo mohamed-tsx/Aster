@@ -151,9 +151,9 @@ model Refund {
   paired `AccountTransaction` in the same `Prisma.$transaction` — the identical pattern
   already used for `sendInquiry`/`respondToInquiry` in the Cases module (two writes,
   one atomic unit). The service must also validate the ledger entry's `currency`
-  matches the source record's own `currency` field, since `Payment`/`Expense`/`Refund`
-  already carry a `currency` and a multi-currency account could otherwise accept a
-  mismatched entry.
+  matches the source record's own `currency` field for `Payment`/`Expense`, and for
+  `Refund` — which has no `currency` field of its own — matches `refund.payment.currency`,
+  since a multi-currency account could otherwise accept a mismatched entry.
 - **`AccountTransaction.{payment,expense,refund}Id` are each `@unique`,** enforcing
   exactly one ledger entry per Payment/Expense/Refund (a 1:1 pairing, not 1:many) —
   each of those records represents one atomic money movement, not something that gets
