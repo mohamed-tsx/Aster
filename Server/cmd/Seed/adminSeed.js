@@ -35,6 +35,7 @@ async function main() {
     "DELETE_CASES",
     "MANAGE_HOSPITALS",
     "MANAGE_AGENCIES",
+    "MANAGE_ACCOUNTS",
     "VIEW_FINANCE",
     "MANAGE_FINANCE",
     "ISSUE_REFUNDS",
