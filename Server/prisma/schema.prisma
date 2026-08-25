@@ -21,11 +21,12 @@ model User {
   roleId String
   role   Role   @relation(fields: [roleId], references: [id])
 
-  assignedCases     Case[]
-  documentsUploaded Document[]
-  paymentsReceived  Payment[]  @relation("PaymentsReceived")
-  expensesPaid      Expense[]  @relation("ExpensesPaid")
-  refundsIssued     Refund[]   @relation("RefundsIssued")
+  assignedCases              Case[]
+  documentsUploaded          Document[]
+  paymentsReceived           Payment[]            @relation("PaymentsReceived")
+  expensesPaid               Expense[]            @relation("ExpensesPaid")
+  refundsIssued              Refund[]             @relation("RefundsIssued")
+  accountTransactionsCreated AccountTransaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -304,7 +305,13 @@ model AccountTransaction {
   refundId String? @unique
   refund   Refund? @relation(fields: [refundId], references: [id], onDelete: Restrict)
 
-  createdAt DateTime @default(now())
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([accountId, currency])
 }
 
 // ---------- Enums ----------
