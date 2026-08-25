@@ -1,6 +1,7 @@
 import api, { getErrorMessage } from "@/utils/api";
 import type { Case, CaseListItem, CasesListResult, HospitalInquiry } from "@/types/case";
 import type { PatientSummary } from "@/types/patient";
+import type { VisaApplication } from "@/types/visa";
 
 type ApiSuccess<T> = { success: boolean; message: string; data: T };
 
@@ -88,6 +89,42 @@ export async function respondToInquiry(
 ): Promise<HospitalInquiry> {
   const response = await api.patch<ApiSuccess<HospitalInquiry>>(
     `/cases/${caseId}/inquiries/${inquiryId}`,
+    payload,
+  );
+  return unwrap(response);
+}
+
+export async function recordFeePayment(
+  caseId: string,
+  visaApplicationId: string,
+  payload: { accountId: string; amount: string; notes?: string },
+): Promise<VisaApplication> {
+  const response = await api.post<ApiSuccess<VisaApplication>>(
+    `/cases/${caseId}/visa-applications/${visaApplicationId}/fee-payment`,
+    payload,
+  );
+  return unwrap(response);
+}
+
+export async function markEmbassyVisited(
+  caseId: string,
+  visaApplicationId: string,
+  payload: { embassyVisitDate: string; notes?: string },
+): Promise<VisaApplication> {
+  const response = await api.patch<ApiSuccess<VisaApplication>>(
+    `/cases/${caseId}/visa-applications/${visaApplicationId}/embassy-visit`,
+    payload,
+  );
+  return unwrap(response);
+}
+
+export async function recordVisaOutcome(
+  caseId: string,
+  visaApplicationId: string,
+  payload: { status: "APPROVED" | "REJECTED"; visaNumber?: string; notes?: string },
+): Promise<VisaApplication> {
+  const response = await api.patch<ApiSuccess<VisaApplication>>(
+    `/cases/${caseId}/visa-applications/${visaApplicationId}/outcome`,
     payload,
   );
   return unwrap(response);

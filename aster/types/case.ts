@@ -1,6 +1,8 @@
 import type { Gender, Patient } from "@/types/patient";
 import type { Agency } from "@/types/agency";
 import type { Hospital } from "@/types/hospital";
+import type { VisaApplication } from "@/types/visa";
+import type { CaseDocument } from "@/types/document";
 
 export type Attendant = {
   id: string;
@@ -65,6 +67,8 @@ export type Case = {
   agency: Agency | null;
   assignedTo: (CaseAssignee & { username: string }) | null;
   inquiries: HospitalInquiry[];
+  visaApplications: VisaApplication[];
+  documents: CaseDocument[];
   createdAt: string;
   updatedAt: string;
 };

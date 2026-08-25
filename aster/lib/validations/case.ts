@@ -198,3 +198,34 @@ export function buildCaseUpdatePayload(values: CaseFormValues): Record<string, u
 
   return payload;
 }
+
+export const feePaymentSchema = z.object({
+  accountId: z.string().min(1, "Select an account"),
+  amount: z
+    .string()
+    .min(1, "Amount is required")
+    .refine((v) => Number(v) > 0, "Amount must be greater than 0"),
+  notes: z.string().max(1000).optional(),
+});
+
+export type FeePaymentFormValues = z.infer<typeof feePaymentSchema>;
+
+export const embassyVisitSchema = z.object({
+  embassyVisitDate: z.string().min(1, "Embassy visit date is required"),
+  notes: z.string().max(1000).optional(),
+});
+
+export type EmbassyVisitFormValues = z.infer<typeof embassyVisitSchema>;
+
+export const visaOutcomeSchema = z
+  .object({
+    status: z.enum(["APPROVED", "REJECTED"]),
+    visaNumber: z.string().max(50).optional(),
+    notes: z.string().max(1000).optional(),
+  })
+  .refine((v) => v.status !== "APPROVED" || !!v.visaNumber?.trim(), {
+    message: "Visa number is required when approved",
+    path: ["visaNumber"],
+  });
+
+export type VisaOutcomeFormValues = z.infer<typeof visaOutcomeSchema>;
