@@ -94,7 +94,10 @@ export default function CaseDetailPage({ params }: PageProps) {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={cancelling}>Keep case</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleCancel}
+              onClick={(event) => {
+                event.preventDefault();
+                handleCancel();
+              }}
               disabled={cancelling}
               className="bg-destructive hover:bg-destructive/90"
             >
