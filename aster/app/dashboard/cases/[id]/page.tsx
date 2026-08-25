@@ -17,6 +17,8 @@ import {
 import { PageHeader } from "@/components/users/page-header";
 import { CaseDetailView } from "@/components/cases/case-detail-view";
 import { HospitalInquiryPanel } from "@/components/cases/hospital-inquiry-panel";
+import { VisaApplicationPanel } from "@/components/cases/visa-application-panel";
+import { DocumentsPanel } from "@/components/cases/documents-panel";
 import { useCaseDetail } from "@/hooks/use-case-detail";
 import { usePermissionGuard } from "@/hooks/use-permission-guard";
 import { useRBAC } from "@/hooks/useRBAC";
@@ -86,6 +88,8 @@ export default function CaseDetailPage({ params }: PageProps) {
 
       <CaseDetailView kase={kase} />
       <HospitalInquiryPanel kase={kase} onChanged={refetch} />
+      <VisaApplicationPanel kase={kase} onChanged={refetch} />
+      <DocumentsPanel kase={kase} onChanged={refetch} />
 
       <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <AlertDialogContent>
