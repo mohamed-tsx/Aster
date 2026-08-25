@@ -44,6 +44,7 @@ import {
   Handshake,
   ClipboardList,
   FilePlus2,
+  Wallet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -118,6 +119,13 @@ const navigation: NavigationItem[] = [
     icon: Handshake,
     children: null,
     permission: "MANAGE_AGENCIES",
+  },
+  {
+    name: "Accounts",
+    href: "/dashboard/accounts",
+    icon: Wallet,
+    children: null,
+    permission: "MANAGE_ACCOUNTS",
   },
   {
     name: "Settings",
