@@ -37,7 +37,7 @@ import { listAgencies } from "@/services/agencies";
 import { listUsers } from "@/services/users";
 import type { Agency } from "@/types/agency";
 import type { Case } from "@/types/case";
-import type { Patient } from "@/types/patient";
+import type { PatientSummary } from "@/types/patient";
 
 const EMPTY_VALUES: CaseFormValues = {
   patientFirstName: "",
@@ -110,7 +110,7 @@ export function CaseForm(props: CaseFormProps) {
   const form = useForm<CaseFormValues>({
     defaultValues: mode === "edit" ? caseToFormValues(props.initialCase) : EMPTY_VALUES,
   });
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(
+  const [selectedPatient, setSelectedPatient] = useState<PatientSummary | null>(
     mode === "edit" ? props.initialCase.patient : null,
   );
   const [agencies, setAgencies] = useState<Agency[]>([]);

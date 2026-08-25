@@ -1,6 +1,6 @@
 import api, { getErrorMessage } from "@/utils/api";
-import type { Case, CaseListItem, CasesListResult } from "@/types/case";
-import type { Patient } from "@/types/patient";
+import type { Case, CaseListItem, CasesListResult, HospitalInquiry } from "@/types/case";
+import type { PatientSummary } from "@/types/patient";
 
 type ApiSuccess<T> = { success: boolean; message: string; data: T };
 
@@ -41,8 +41,8 @@ export async function getCaseById(id: string): Promise<Case> {
   return unwrap(response);
 }
 
-export async function searchPatients(passportNumber: string): Promise<Patient[]> {
-  const response = await api.get<ApiSuccess<{ patients: Patient[] }>>(
+export async function searchPatients(passportNumber: string): Promise<PatientSummary[]> {
+  const response = await api.get<ApiSuccess<{ patients: PatientSummary[] }>>(
     "/cases/patients/search",
     { params: { passportNumber } },
   );
@@ -72,8 +72,8 @@ export async function cancelCase(id: string): Promise<Case> {
 export async function sendInquiry(
   caseId: string,
   payload: { hospitalId: string; notes?: string },
-): Promise<Case> {
-  const response = await api.post<ApiSuccess<Case>>(
+): Promise<HospitalInquiry> {
+  const response = await api.post<ApiSuccess<HospitalInquiry>>(
     `/cases/${caseId}/inquiries`,
     payload,
   );
@@ -85,8 +85,8 @@ export async function respondToInquiry(
   inquiryId: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload: Record<string, any>,
-): Promise<Case> {
-  const response = await api.patch<ApiSuccess<Case>>(
+): Promise<HospitalInquiry> {
+  const response = await api.patch<ApiSuccess<HospitalInquiry>>(
     `/cases/${caseId}/inquiries/${inquiryId}`,
     payload,
   );

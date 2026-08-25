@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/users/page-header";
 import { CaseDetailView } from "@/components/cases/case-detail-view";
 import { HospitalInquiryPanel } from "@/components/cases/hospital-inquiry-panel";
 import { useCaseDetail } from "@/hooks/use-case-detail";
+import { usePermissionGuard } from "@/hooks/use-permission-guard";
 import { useRBAC } from "@/hooks/useRBAC";
 import { useToast } from "@/hooks/use-toast";
 import { cancelCase, getErrorMessage } from "@/services/cases";
@@ -26,6 +27,7 @@ type PageProps = { params: Promise<{ id: string }> };
 
 export default function CaseDetailPage({ params }: PageProps) {
   const { id } = use(params);
+  const allowed = usePermissionGuard("VIEW_CASES");
   const toast = useToast();
   const { hasPermission } = useRBAC();
   const { case: kase, loading, refetch } = useCaseDetail(id);
@@ -45,6 +47,8 @@ export default function CaseDetailPage({ params }: PageProps) {
       setCancelling(false);
     }
   };
+
+  if (!allowed) return null;
 
   if (loading || !kase) {
     return (

@@ -17,8 +17,10 @@ export const searchPatientsCtrl = asyncHandler(async (req, res) => {
 });
 
 export const listCasesCtrl = asyncHandler(async (req, res) => {
-  const page = parseInt(req.query.page, 10) || 1;
-  const limit = parseInt(req.query.limit, 10) || 20;
+  const rawPage = parseInt(req.query.page, 10) || 1;
+  const rawLimit = parseInt(req.query.limit, 10) || 20;
+  const page = Math.max(1, rawPage);
+  const limit = Math.min(100, Math.max(1, rawLimit));
   const { status, reachOutType, assignedToId, q } = req.query;
 
   const result = await listCases({ page, limit, status, reachOutType, assignedToId, q });

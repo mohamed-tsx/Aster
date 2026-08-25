@@ -7,17 +7,17 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { searchPatients, getErrorMessage } from "@/services/cases";
-import type { Patient } from "@/types/patient";
+import type { PatientSummary } from "@/types/patient";
 
 type PatientSearchProps = {
-  selectedPatient: Patient | null;
-  onSelect: (patient: Patient | null) => void;
+  selectedPatient: PatientSummary | null;
+  onSelect: (patient: PatientSummary | null) => void;
 };
 
 export function PatientSearch({ selectedPatient, onSelect }: PatientSearchProps) {
   const toast = useToast();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Patient[]>([]);
+  const [results, setResults] = useState<PatientSummary[]>([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
 

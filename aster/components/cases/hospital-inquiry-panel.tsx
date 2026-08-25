@@ -106,7 +106,9 @@ export function HospitalInquiryPanel({ kase, onChanged }: HospitalInquiryPanelPr
               <Badge variant={INQUIRY_STATUS_VARIANT[inquiry.status]}>
                 {inquiry.status}
               </Badge>
-              {inquiry.status === "PENDING" && hasPermission("UPDATE_CASES") && (
+              {inquiry.status === "PENDING" &&
+                hasPermission("UPDATE_CASES") &&
+                kase.status !== "CANCELLED" && (
                 <Button
                   size="sm"
                   variant="outline"

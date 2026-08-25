@@ -115,13 +115,23 @@ const assertAttendantRequiredFields = (data) => {
   }
 };
 
+const PATIENT_SEARCH_MIN_LENGTH = 4;
+
 /**
  * @param {string} passportNumber
  */
 export const searchPatients = async (passportNumber) => {
-  if (!passportNumber?.trim()) {
+  const trimmed = passportNumber?.trim();
+  if (!trimmed) {
     throw new AppError(
       "passportNumber query param is required",
+      400,
+      "VALIDATION_ERROR",
+    );
+  }
+  if (trimmed.length < PATIENT_SEARCH_MIN_LENGTH) {
+    throw new AppError(
+      `passportNumber must be at least ${PATIENT_SEARCH_MIN_LENGTH} characters`,
       400,
       "VALIDATION_ERROR",
     );
@@ -129,10 +139,11 @@ export const searchPatients = async (passportNumber) => {
 
   return Prisma.patient.findMany({
     where: {
-      passportNumber: { contains: passportNumber.trim(), mode: "insensitive" },
+      passportNumber: { contains: trimmed, mode: "insensitive" },
     },
     orderBy: { createdAt: "desc" },
     take: 10,
+    select: { id: true, firstName: true, lastName: true, passportNumber: true },
   });
 };
 
@@ -326,6 +337,11 @@ export const updateCase = async (caseId, data) => {
   if (data.notes !== undefined) caseUpdateData.notes = data.notes || null;
 
   const patientUpdateData = pickFields(data, PATIENT_FIELDS);
+  // Nullable optional patient fields: an explicit "" from the client means "clear
+  // this field", which Prisma expects as `null` rather than a literal empty string.
+  for (const field of ["email", "address"]) {
+    if (patientUpdateData[field] === "") patientUpdateData[field] = null;
+  }
   if (Object.keys(patientUpdateData).length > 0) {
     // Reject only required fields that are actually present in this update payload
     // and falsy/empty — not "all required fields must be present" — so a partial
@@ -337,29 +353,45 @@ export const updateCase = async (caseId, data) => {
         throw new AppError(`Patient ${field} is required`, 400, "VALIDATION_ERROR");
       }
     }
-    await Prisma.patient.update({
-      where: { id: existing.patientId },
-      data: patientUpdateData,
-    });
   }
 
+  let attendantUpdateData = null;
   if (existing.attendant && data.hasAttendant !== false) {
-    const attendantUpdateData = pickAttendantFields(data);
-    if (Object.keys(attendantUpdateData).length > 0) {
-      await Prisma.attendant.update({
+    const picked = pickAttendantFields(data);
+    if (Object.keys(picked).length > 0) attendantUpdateData = picked;
+  }
+
+  // Run every write for this update as one atomic transaction — a failure partway
+  // through (e.g. the case update) must not leave the patient/attendant rows updated
+  // while the case itself is untouched. The case update stays last so its result
+  // (with CASE_DETAIL_INCLUDE) is the one we return.
+  const transactionOps = [];
+  if (Object.keys(patientUpdateData).length > 0) {
+    transactionOps.push(
+      Prisma.patient.update({
+        where: { id: existing.patientId },
+        data: patientUpdateData,
+      }),
+    );
+  }
+  if (attendantUpdateData) {
+    transactionOps.push(
+      Prisma.attendant.update({
         where: { caseId },
         data: attendantUpdateData,
-      });
-    }
+      }),
+    );
   }
+  transactionOps.push(
+    Prisma.case.update({
+      where: { id: caseId },
+      data: caseUpdateData,
+      include: CASE_DETAIL_INCLUDE,
+    }),
+  );
 
-  const updated = await Prisma.case.update({
-    where: { id: caseId },
-    data: caseUpdateData,
-    include: CASE_DETAIL_INCLUDE,
-  });
-
-  return updated;
+  const results = await Prisma.$transaction(transactionOps);
+  return results[results.length - 1];
 };
 
 /**
@@ -416,6 +448,18 @@ export const sendInquiry = async (caseId, data) => {
  * @param {{ status: "ACCEPTED" | "DECLINED", treatmentCostEstimate?: number, currency?: string, notes?: string }} data
  */
 export const respondToInquiry = async (caseId, inquiryId, data) => {
+  const kase = await Prisma.case.findUnique({ where: { id: caseId } });
+  if (!kase) {
+    throw new AppError("Case not found", 404, "NOT_FOUND");
+  }
+  if (kase.status === "CANCELLED") {
+    throw new AppError(
+      "Cannot respond to an inquiry for a cancelled case",
+      400,
+      "VALIDATION_ERROR",
+    );
+  }
+
   const inquiry = await Prisma.hospitalInquiry.findUnique({ where: { id: inquiryId } });
   if (!inquiry || inquiry.caseId !== caseId) {
     throw new AppError("Hospital inquiry not found", 404, "NOT_FOUND");
@@ -479,9 +523,20 @@ export const cancelCase = async (caseId) => {
     throw new AppError("This case is already cancelled", 400, "VALIDATION_ERROR");
   }
 
-  return Prisma.case.update({
-    where: { id: caseId },
-    data: { status: "CANCELLED" },
-    include: CASE_DETAIL_INCLUDE,
-  });
+  // Cancelling a case must not leave a dangling PENDING inquiry that could still be
+  // responded to later and un-cancel the case's effective state — close out any
+  // pending inquiries in the same transaction as the case cancellation.
+  const [, updatedCase] = await Prisma.$transaction([
+    Prisma.hospitalInquiry.updateMany({
+      where: { caseId, status: "PENDING" },
+      data: { status: "DECLINED", respondedAt: new Date() },
+    }),
+    Prisma.case.update({
+      where: { id: caseId },
+      data: { status: "CANCELLED" },
+      include: CASE_DETAIL_INCLUDE,
+    }),
+  ]);
+
+  return updatedCase;
 };

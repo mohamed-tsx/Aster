@@ -15,3 +15,9 @@ export type Patient = {
   createdAt: string;
   updatedAt: string;
 };
+
+// The shape returned by the patient search endpoint (Server's searchPatients),
+// which selects only the fields the search-and-pick UI actually renders — not the
+// full Patient record (PHI like DOB/phone/email/address/passport-expiry is never
+// sent for a search-by-passport-fragment query).
+export type PatientSummary = Pick<Patient, "id" | "firstName" | "lastName" | "passportNumber">;

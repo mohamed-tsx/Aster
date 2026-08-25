@@ -162,10 +162,15 @@ export function buildCaseCreatePayload(
 }
 
 export function buildCaseUpdatePayload(values: CaseFormValues): Record<string, unknown> {
+  // Unlike buildCaseCreatePayload, a blanked optional field here must be sent as an
+  // explicit "" rather than omitted: `undefined` keys are dropped by
+  // JSON.stringify, and the backend's updateCase treats a *missing* key as "leave
+  // this field alone," not "clear it." Sending "" is what actually clears
+  // notes/email/address/assignedToId back to null server-side.
   const payload: Record<string, unknown> = {
     agencyId: values.reachOutType === "AGENCY" ? values.agencyId : undefined,
-    assignedToId: values.assignedToId || undefined,
-    notes: values.notes?.trim() || undefined,
+    assignedToId: values.assignedToId || "",
+    notes: values.notes?.trim() ?? "",
     hasAttendant: values.hasAttendant,
     firstName: values.patientFirstName,
     lastName: values.patientLastName,
@@ -175,8 +180,8 @@ export function buildCaseUpdatePayload(values: CaseFormValues): Record<string, u
     passportNumber: values.patientPassportNumber,
     passportExpiry: values.patientPassportExpiry,
     phone: values.patientPhone,
-    email: values.patientEmail?.trim() || undefined,
-    address: values.patientAddress?.trim() || undefined,
+    email: values.patientEmail?.trim() ?? "",
+    address: values.patientAddress?.trim() ?? "",
   };
 
   if (values.hasAttendant) {

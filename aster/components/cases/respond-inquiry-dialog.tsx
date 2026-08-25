@@ -80,18 +80,26 @@ export function RespondInquiryDialog({
                 }
                 return;
               }
-              if (parsed.data.treatmentCostEstimate && !parsed.data.currency) {
+              const isAccepted = parsed.data.status === "ACCEPTED";
+              if (isAccepted && parsed.data.treatmentCostEstimate && !parsed.data.currency) {
                 form.setError("currency", {
                   message: "Currency is required with a cost estimate",
                 });
                 return;
               }
+              // Cost fields are only shown (and editable) when status is ACCEPTED —
+              // a value typed before switching the dropdown to Declined must never
+              // be forwarded, or a declined inquiry could persist a stray estimate.
               await onSubmit({
                 status: parsed.data.status,
-                treatmentCostEstimate: parsed.data.treatmentCostEstimate || undefined,
-                currency: parsed.data.treatmentCostEstimate
-                  ? parsed.data.currency
-                  : undefined,
+                treatmentCostEstimate:
+                  isAccepted && parsed.data.treatmentCostEstimate
+                    ? parsed.data.treatmentCostEstimate
+                    : undefined,
+                currency:
+                  isAccepted && parsed.data.treatmentCostEstimate
+                    ? parsed.data.currency
+                    : undefined,
                 notes: parsed.data.notes?.trim() || undefined,
               });
             })}
