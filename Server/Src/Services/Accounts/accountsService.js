@@ -39,6 +39,59 @@ export const getAccountBalances = async (accountId) => {
   return balances;
 };
 
+const TRANSACTION_LIST_INCLUDE = {
+  createdBy: { select: { id: true, firstName: true, lastName: true } },
+  payment: {
+    select: {
+      id: true,
+      visaApplication: {
+        select: { id: true, travelerType: true, case: { select: { id: true, caseNumber: true } } },
+      },
+    },
+  },
+  expense: {
+    select: { id: true, category: true, case: { select: { id: true, caseNumber: true } } },
+  },
+  refund: {
+    select: {
+      id: true,
+      reason: true,
+      payment: {
+        select: {
+          visaApplication: {
+            select: { case: { select: { id: true, caseNumber: true } } },
+          },
+        },
+      },
+    },
+  },
+};
+
+/**
+ * @param {string} accountId
+ * @param {{ page?: number, limit?: number }} params
+ */
+export const listAccountTransactions = async (accountId, { page = 1, limit = 20 } = {}) => {
+  const account = await Prisma.account.findUnique({ where: { id: accountId } });
+  if (!account) {
+    throw new AppError("Account not found", 404, "NOT_FOUND");
+  }
+
+  const where = { accountId };
+  const [transactions, total] = await Promise.all([
+    Prisma.accountTransaction.findMany({
+      where,
+      include: TRANSACTION_LIST_INCLUDE,
+      orderBy: { occurredAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    Prisma.accountTransaction.count({ where }),
+  ]);
+
+  return { transactions, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
+};
+
 export const listAccounts = async () => {
   const accounts = await Prisma.account.findMany({
     where: { isActive: true },

@@ -1,0 +1,98 @@
+import Prisma from "../../Src/Config/Prisma/db.js";
+
+const unique = () => `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+export const createRole = async (permissionNames = []) => {
+  const permissions = await Promise.all(
+    permissionNames.map((name) =>
+      Prisma.permission.upsert({ where: { name }, update: {}, create: { name } }),
+    ),
+  );
+  return Prisma.role.create({
+    data: {
+      name: `ROLE_${unique()}`,
+      permissions: { connect: permissions.map((p) => ({ id: p.id })) },
+    },
+  });
+};
+
+export const createUser = async ({ permissionNames = [], ...overrides } = {}) => {
+  const role = await createRole(permissionNames);
+  return Prisma.user.create({
+    data: {
+      username: `user_${unique()}`,
+      password: "hashed",
+      firstName: "Test",
+      lastName: "User",
+      roleId: role.id,
+      ...overrides,
+    },
+  });
+};
+
+export const createAccount = async (overrides = {}) =>
+  Prisma.account.create({
+    data: { name: `Account ${unique()}`, type: "BANK", ...overrides },
+  });
+
+export const createPatient = async (overrides = {}) =>
+  Prisma.patient.create({
+    data: {
+      firstName: "John",
+      lastName: "Doe",
+      gender: "MALE",
+      dateOfBirth: new Date("1990-01-01"),
+      nationality: "Testland",
+      passportNumber: `P${unique()}`,
+      passportExpiry: new Date("2030-01-01"),
+      phone: "1234567890",
+      ...overrides,
+    },
+  });
+
+export const createCase = async ({ patientId, ...overrides } = {}) => {
+  const id = patientId || (await createPatient()).id;
+  return Prisma.case.create({
+    data: {
+      caseNumber: `C${unique()}`,
+      reachOutType: "DIRECT",
+      patientId: id,
+      ...overrides,
+    },
+  });
+};
+
+export const createVisaApplication = async ({ caseId, ...overrides } = {}) =>
+  Prisma.visaApplication.create({
+    data: {
+      caseId,
+      travelerType: "PATIENT",
+      ...overrides,
+    },
+  });
+
+export const createPayment = async ({
+  visaApplicationId,
+  receivedById,
+  accountId,
+  amount = 100,
+  currency = "USD",
+}) =>
+  Prisma.payment.create({
+    data: {
+      visaApplicationId,
+      amount,
+      currency,
+      feeType: "DIRECT",
+      receivedById,
+      accountTransaction: {
+        create: {
+          accountId,
+          type: "PAYMENT_RECEIVED",
+          amount,
+          currency,
+          createdById: receivedById,
+        },
+      },
+    },
+  });

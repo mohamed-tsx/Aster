@@ -11,6 +11,7 @@ import {
   recordFeePaymentCtrl,
   markEmbassyVisitedCtrl,
   recordVisaOutcomeCtrl,
+  issueRefundCtrl,
 } from "../../Controllers/Cases/casesController.js";
 import Verify from "../../Middlewares/Auth/Verify.js";
 import RequirePermission from "../../Middlewares/Auth/RequirePermission.js";
@@ -52,6 +53,11 @@ router.patch(
   "/:id/visa-applications/:visaApplicationId/outcome",
   RequirePermission("UPDATE_CASES"),
   recordVisaOutcomeCtrl,
+);
+router.post(
+  "/:id/visa-applications/:visaApplicationId/refund",
+  RequirePermission("ISSUE_REFUNDS"),
+  issueRefundCtrl,
 );
 
 export default router;

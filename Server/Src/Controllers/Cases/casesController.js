@@ -11,6 +11,7 @@ import {
   recordFeePayment,
   markEmbassyVisited,
   recordVisaOutcome,
+  issueRefund,
 } from "../../Services/Cases/casesService.js";
 import { sendSuccess, sendCreated } from "../../Utils/Response/apiResponse.js";
 
@@ -86,4 +87,14 @@ export const recordVisaOutcomeCtrl = asyncHandler(async (req, res) => {
     req.body,
   );
   return sendSuccess(res, "Visa outcome recorded successfully", visaApplication);
+});
+
+export const issueRefundCtrl = asyncHandler(async (req, res) => {
+  const refund = await issueRefund(
+    req.params.id,
+    req.params.visaApplicationId,
+    req.body,
+    req.user.id,
+  );
+  return sendCreated(res, "Refund issued successfully", refund);
 });

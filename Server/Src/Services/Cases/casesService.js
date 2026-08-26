@@ -27,10 +27,21 @@ const CASE_DETAIL_INCLUDE = {
   },
   visaApplications: {
     orderBy: { createdAt: "asc" },
-    include: { payment: true },
+    include: {
+      payment: {
+        include: { refunds: { orderBy: { refundedAt: "desc" } } },
+      },
+    },
   },
   documents: {
     orderBy: { createdAt: "desc" },
+  },
+  expenses: {
+    orderBy: { incurredAt: "desc" },
+    include: {
+      paidBy: { select: { id: true, firstName: true, lastName: true } },
+      accountTransaction: { select: { account: { select: { id: true, name: true } } } },
+    },
   },
 };
 
@@ -792,4 +803,78 @@ export const recordVisaOutcome = async (caseId, visaApplicationId, data) => {
 
   const [updatedVisaApplication] = await Prisma.$transaction(transactionOps);
   return updatedVisaApplication;
+};
+
+/**
+ * A refund is issued against the payment already recorded for a visa
+ * application. Deliberately has no cancelled-case guard (unlike the other
+ * visa-application actions above) — refunding money already collected is a
+ * normal thing to do *after* a case is cancelled.
+ * @param {string} caseId
+ * @param {string} visaApplicationId
+ * @param {{ accountId: string, amount: number|string, reason: string }} data
+ * @param {string} userId
+ */
+export const issueRefund = async (caseId, visaApplicationId, data, userId) => {
+  const visaApplication = await Prisma.visaApplication.findUnique({
+    where: { id: visaApplicationId },
+    include: { payment: { include: { refunds: true } } },
+  });
+  if (!visaApplication || visaApplication.caseId !== caseId) {
+    throw new AppError("Visa application not found", 404, "NOT_FOUND");
+  }
+  if (!visaApplication.payment) {
+    throw new AppError(
+      "No payment has been recorded for this visa application",
+      400,
+      "VALIDATION_ERROR",
+    );
+  }
+
+  const { accountId, amount, reason } = data;
+  if (!accountId) {
+    throw new AppError("accountId is required", 400, "VALIDATION_ERROR");
+  }
+  if (amount === undefined || amount === null || amount === "" || Number(amount) <= 0) {
+    throw new AppError("amount must be a positive number", 400, "VALIDATION_ERROR");
+  }
+  if (!reason?.trim()) {
+    throw new AppError("reason is required", 400, "VALIDATION_ERROR");
+  }
+
+  const account = await Prisma.account.findUnique({ where: { id: accountId } });
+  if (!account) {
+    throw new AppError("Account not found", 404, "NOT_FOUND");
+  }
+
+  const { payment } = visaApplication;
+  const alreadyRefunded = payment.refunds.reduce((sum, r) => sum + Number(r.amount), 0);
+  const refundable = Number(payment.amount) - alreadyRefunded;
+  if (Number(amount) > refundable) {
+    throw new AppError(
+      `amount cannot exceed the refundable balance of ${refundable}`,
+      400,
+      "VALIDATION_ERROR",
+    );
+  }
+
+  // Same "checked" create-input shape gotcha as `recordFeePayment` — sibling
+  // scalar FKs alongside a nested relation write must use `connect`.
+  return Prisma.refund.create({
+    data: {
+      payment: { connect: { id: payment.id } },
+      amount,
+      reason: reason.trim(),
+      refundedBy: { connect: { id: userId } },
+      accountTransaction: {
+        create: {
+          accountId,
+          type: "REFUND_ISSUED",
+          amount,
+          currency: payment.currency,
+          createdById: userId,
+        },
+      },
+    },
+  });
 };

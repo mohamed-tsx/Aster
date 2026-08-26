@@ -7,7 +7,8 @@
   "type": "module",
   "main": "Server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "dev": "nodemon cmd/Server/Server.js",
     "seed:admin": "node cmd/Seed/adminSeed.js"
   },
@@ -29,6 +30,8 @@
     "sharp": "^0.35.3"
   },
   "devDependencies": {
-    "prisma": "^7.9.1"
+    "dotenv-cli": "^11.0.0",
+    "prisma": "^7.9.1",
+    "vitest": "^4.1.11"
   }
 }

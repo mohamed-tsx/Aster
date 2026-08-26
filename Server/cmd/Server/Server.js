@@ -19,6 +19,8 @@ import agenciesRoutes from "../../Src/Routes/Agencies/agenciesRoute.js";
 import casesRoutes from "../../Src/Routes/Cases/casesRoute.js";
 import documentsRoutes from "../../Src/Routes/Documents/documentsRoute.js";
 import accountsRoutes from "../../Src/Routes/Accounts/accountsRoute.js";
+import expensesRoutes from "../../Src/Routes/Expenses/expensesRoute.js";
+import dashboardRoutes from "../../Src/Routes/Dashboard/dashboardRoute.js";
 import Verify from "../../Src/Middlewares/Auth/Verify.js";
 import RequirePermission from "../../Src/Middlewares/Auth/RequirePermission.js";
 
@@ -115,6 +117,8 @@ Server.use("/api/v1/agencies", agenciesRoutes);
 Server.use("/api/v1/cases", casesRoutes);
 Server.use("/api/v1/cases/:caseId/documents", documentsRoutes);
 Server.use("/api/v1/accounts", accountsRoutes);
+Server.use("/api/v1/expenses", expensesRoutes);
+Server.use("/api/v1/dashboard", dashboardRoutes);
 
 // Default route
 Server.get("/", (req, res) => {

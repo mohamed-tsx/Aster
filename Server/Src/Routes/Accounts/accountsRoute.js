@@ -1,5 +1,9 @@
 import express from "express";
-import { listAccountsCtrl, createAccountCtrl } from "../../Controllers/Accounts/accountsController.js";
+import {
+  listAccountsCtrl,
+  createAccountCtrl,
+  listAccountTransactionsCtrl,
+} from "../../Controllers/Accounts/accountsController.js";
 import Verify from "../../Middlewares/Auth/Verify.js";
 import RequirePermission from "../../Middlewares/Auth/RequirePermission.js";
 import RequireAnyPermission from "../../Middlewares/Auth/RequireAnyPermission.js";
@@ -14,5 +18,10 @@ router.get(
   listAccountsCtrl,
 );
 router.post("/", RequirePermission("MANAGE_ACCOUNTS"), createAccountCtrl);
+router.get(
+  "/:id/transactions",
+  RequireAnyPermission(["MANAGE_ACCOUNTS", "MANAGE_FINANCE", "VIEW_FINANCE"]),
+  listAccountTransactionsCtrl,
+);
 
 export default router;
