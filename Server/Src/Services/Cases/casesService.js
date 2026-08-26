@@ -2,6 +2,25 @@ import Prisma from "../../Config/Prisma/db.js";
 import { AppError } from "../../Utils/ErrorHandler/errorHandler.js";
 import { generateCaseNumber } from "../../Config/Generators/ID/customCaseIdGenerator.js";
 
+/**
+ * Builds a `Prisma.caseEvent.create(...)` op for inclusion in a `$transaction`
+ * array — Case/VisaApplication/HospitalInquiry only ever store their *current*
+ * status, so this is the only record of "moved from X to Y, when, by whom".
+ * @param {{ caseId: string, type: "CASE_CREATED"|"CASE_STATUS_CHANGED"|"VISA_STATUS_CHANGED"|"INQUIRY_STATUS_CHANGED", fromStatus?: string|null, toStatus: string, visaApplicationId?: string, inquiryId?: string, actorId?: string|null }} params
+ */
+const caseEventOp = ({ caseId, type, fromStatus, toStatus, visaApplicationId, inquiryId, actorId }) =>
+  Prisma.caseEvent.create({
+    data: {
+      caseId,
+      type,
+      fromStatus: fromStatus ?? null,
+      toStatus,
+      visaApplicationId: visaApplicationId ?? null,
+      inquiryId: inquiryId ?? null,
+      actorId: actorId ?? null,
+    },
+  });
+
 const CASE_LIST_SELECT = {
   id: true,
   caseNumber: true,
@@ -232,8 +251,9 @@ export const getCaseById = async (caseId) => {
 /**
  * @param {Object} data - patientId (reuse) OR flat patient* fields (new patient),
  *   optional flat attendant* fields, reachOutType, agencyId, assignedToId, notes
+ * @param {string} userId
  */
-export const createCase = async (data) => {
+export const createCase = async (data, userId) => {
   const { patientId, reachOutType, agencyId, assignedToId, notes } = data;
 
   if (!reachOutType || !["DIRECT", "AGENCY"].includes(reachOutType)) {
@@ -298,6 +318,7 @@ export const createCase = async (data) => {
         : {}),
       ...(assignedToId ? { assignedTo: { connect: { id: assignedToId } } } : {}),
       ...(attendantCreateData ? { attendant: { create: attendantCreateData } } : {}),
+      events: { create: { type: "CASE_CREATED", toStatus: "NEW", actorId: userId ?? null } },
     },
     include: CASE_DETAIL_INCLUDE,
   });
@@ -421,8 +442,9 @@ export const updateCase = async (caseId, data) => {
 /**
  * @param {string} caseId
  * @param {{ hospitalId: string, notes?: string }} data
+ * @param {string} userId
  */
-export const sendInquiry = async (caseId, data) => {
+export const sendInquiry = async (caseId, data, userId) => {
   const kase = await Prisma.case.findUnique({ where: { id: caseId } });
   if (!kase) {
     throw new AppError("Case not found", 404, "NOT_FOUND");
@@ -465,6 +487,13 @@ export const sendInquiry = async (caseId, data) => {
       where: { id: caseId },
       data: { status: "HOSPITAL_MATCHING" },
     }),
+    caseEventOp({
+      caseId,
+      type: "CASE_STATUS_CHANGED",
+      fromStatus: kase.status,
+      toStatus: "HOSPITAL_MATCHING",
+      actorId: userId,
+    }),
   ]);
 
   return inquiry;
@@ -474,8 +503,9 @@ export const sendInquiry = async (caseId, data) => {
  * @param {string} caseId
  * @param {string} inquiryId
  * @param {{ status: "ACCEPTED" | "DECLINED", treatmentCostEstimate?: number, currency?: string, notes?: string }} data
+ * @param {string} userId
  */
-export const respondToInquiry = async (caseId, inquiryId, data) => {
+export const respondToInquiry = async (caseId, inquiryId, data, userId) => {
   const kase = await Prisma.case.findUnique({
     where: { id: caseId },
     include: { attendant: true },
@@ -537,6 +567,21 @@ export const respondToInquiry = async (caseId, inquiryId, data) => {
       where: { id: caseId },
       data: { status: caseStatus },
     }),
+    caseEventOp({
+      caseId,
+      type: "INQUIRY_STATUS_CHANGED",
+      fromStatus: "PENDING",
+      toStatus: status,
+      inquiryId,
+      actorId: userId,
+    }),
+    caseEventOp({
+      caseId,
+      type: "CASE_STATUS_CHANGED",
+      fromStatus: kase.status,
+      toStatus: caseStatus,
+      actorId: userId,
+    }),
   ];
 
   if (status === "ACCEPTED") {
@@ -561,8 +606,9 @@ export const respondToInquiry = async (caseId, inquiryId, data) => {
 
 /**
  * @param {string} caseId
+ * @param {string} userId
  */
-export const cancelCase = async (caseId) => {
+export const cancelCase = async (caseId, userId) => {
   const kase = await Prisma.case.findUnique({ where: { id: caseId } });
   if (!kase) {
     throw new AppError("Case not found", 404, "NOT_FOUND");
@@ -583,6 +629,13 @@ export const cancelCase = async (caseId) => {
       where: { id: caseId },
       data: { status: "CANCELLED" },
       include: CASE_DETAIL_INCLUDE,
+    }),
+    caseEventOp({
+      caseId,
+      type: "CASE_STATUS_CHANGED",
+      fromStatus: kase.status,
+      toStatus: "CANCELLED",
+      actorId: userId,
     }),
   ]);
 
@@ -674,12 +727,27 @@ export const recordFeePayment = async (caseId, visaApplicationId, data, userId) 
       data: { status: "FEE_PAID" },
       include: { payment: true },
     }),
+    caseEventOp({
+      caseId,
+      type: "VISA_STATUS_CHANGED",
+      fromStatus: visaApplication.status,
+      toStatus: "FEE_PAID",
+      visaApplicationId,
+      actorId: userId,
+    }),
   ];
   if (isFirstPayment) {
     transactionOps.push(
       Prisma.case.update({
         where: { id: caseId },
         data: { status: "VISA_PROCESSING" },
+      }),
+      caseEventOp({
+        caseId,
+        type: "CASE_STATUS_CHANGED",
+        fromStatus: kase.status,
+        toStatus: "VISA_PROCESSING",
+        actorId: userId,
       }),
     );
   }
@@ -692,8 +760,9 @@ export const recordFeePayment = async (caseId, visaApplicationId, data, userId) 
  * @param {string} caseId
  * @param {string} visaApplicationId
  * @param {{ embassyVisitDate: string, notes?: string }} data
+ * @param {string} userId
  */
-export const markEmbassyVisited = async (caseId, visaApplicationId, data) => {
+export const markEmbassyVisited = async (caseId, visaApplicationId, data, userId) => {
   const visaApplication = await Prisma.visaApplication.findUnique({
     where: { id: visaApplicationId },
   });
@@ -722,23 +791,35 @@ export const markEmbassyVisited = async (caseId, visaApplicationId, data) => {
     throw new AppError("embassyVisitDate is required", 400, "VALIDATION_ERROR");
   }
 
-  return Prisma.visaApplication.update({
-    where: { id: visaApplicationId },
-    data: {
-      status: "EMBASSY_VISITED",
-      embassyVisitDate: normalizeDateValue("embassyVisitDate", embassyVisitDate),
-      notes: notes !== undefined ? notes || null : undefined,
-    },
-    include: { payment: true },
-  });
+  const [updated] = await Prisma.$transaction([
+    Prisma.visaApplication.update({
+      where: { id: visaApplicationId },
+      data: {
+        status: "EMBASSY_VISITED",
+        embassyVisitDate: normalizeDateValue("embassyVisitDate", embassyVisitDate),
+        notes: notes !== undefined ? notes || null : undefined,
+      },
+      include: { payment: true },
+    }),
+    caseEventOp({
+      caseId,
+      type: "VISA_STATUS_CHANGED",
+      fromStatus: visaApplication.status,
+      toStatus: "EMBASSY_VISITED",
+      visaApplicationId,
+      actorId: userId,
+    }),
+  ]);
+  return updated;
 };
 
 /**
  * @param {string} caseId
  * @param {string} visaApplicationId
  * @param {{ status: "APPROVED"|"REJECTED", visaNumber?: string, notes?: string }} data
+ * @param {string} userId
  */
-export const recordVisaOutcome = async (caseId, visaApplicationId, data) => {
+export const recordVisaOutcome = async (caseId, visaApplicationId, data, userId) => {
   const visaApplication = await Prisma.visaApplication.findUnique({
     where: { id: visaApplicationId },
   });
@@ -791,12 +872,27 @@ export const recordVisaOutcome = async (caseId, visaApplicationId, data) => {
       },
       include: { payment: true },
     }),
+    caseEventOp({
+      caseId,
+      type: "VISA_STATUS_CHANGED",
+      fromStatus: visaApplication.status,
+      toStatus: status,
+      visaApplicationId,
+      actorId: userId,
+    }),
   ];
   if (allTerminalAfterThisUpdate) {
     transactionOps.push(
       Prisma.case.update({
         where: { id: caseId },
         data: { status: "COMPLETED" },
+      }),
+      caseEventOp({
+        caseId,
+        type: "CASE_STATUS_CHANGED",
+        fromStatus: kase.status,
+        toStatus: "COMPLETED",
+        actorId: userId,
       }),
     );
   }
@@ -877,4 +973,89 @@ export const issueRefund = async (caseId, visaApplicationId, data, userId) => {
       },
     },
   });
+};
+
+const ACTOR_SELECT = { select: { id: true, firstName: true, lastName: true } };
+
+/**
+ * Merges everything timestamped on a case — status-change events, user notes,
+ * payments, expenses, refunds, and document uploads — into one chronological
+ * (oldest-first) feed. This is per-case and unbounded, unlike the dashboard's
+ * global recent-activity feed (getRecentActivity in dashboardService.js),
+ * which is capped and merges across *all* cases.
+ * @param {string} caseId
+ */
+export const getCaseTimeline = async (caseId) => {
+  const kase = await Prisma.case.findUnique({ where: { id: caseId } });
+  if (!kase) {
+    throw new AppError("Case not found", 404, "NOT_FOUND");
+  }
+
+  const [events, notes, payments, expenses, refunds, documents] = await Promise.all([
+    Prisma.caseEvent.findMany({ where: { caseId }, include: { actor: ACTOR_SELECT } }),
+    Prisma.caseNote.findMany({ where: { caseId }, include: { author: ACTOR_SELECT } }),
+    Prisma.payment.findMany({
+      where: { visaApplication: { caseId } },
+      include: { receivedBy: ACTOR_SELECT, visaApplication: { select: { travelerType: true } } },
+    }),
+    Prisma.expense.findMany({ where: { caseId }, include: { paidBy: ACTOR_SELECT } }),
+    Prisma.refund.findMany({
+      where: { payment: { visaApplication: { caseId } } },
+      include: {
+        refundedBy: ACTOR_SELECT,
+        payment: { select: { visaApplication: { select: { travelerType: true } } } },
+      },
+    }),
+    Prisma.document.findMany({ where: { caseId }, include: { uploadedBy: ACTOR_SELECT } }),
+  ]);
+
+  const items = [
+    ...events.map((e) => ({
+      type: "CASE_STATUS_EVENT",
+      subtype: e.type,
+      occurredAt: e.createdAt,
+      fromStatus: e.fromStatus,
+      toStatus: e.toStatus,
+      actor: e.actor,
+    })),
+    ...notes.map((n) => ({
+      type: "NOTE",
+      occurredAt: n.createdAt,
+      body: n.body,
+      actor: n.author,
+    })),
+    ...payments.map((p) => ({
+      type: "PAYMENT_RECEIVED",
+      occurredAt: p.paidAt,
+      amount: p.amount,
+      currency: p.currency,
+      travelerType: p.visaApplication.travelerType,
+      actor: p.receivedBy,
+    })),
+    ...expenses.map((e) => ({
+      type: "EXPENSE_PAID",
+      occurredAt: e.incurredAt,
+      amount: e.amount,
+      currency: e.currency,
+      category: e.category,
+      actor: e.paidBy,
+    })),
+    ...refunds.map((r) => ({
+      type: "REFUND_ISSUED",
+      occurredAt: r.refundedAt,
+      amount: r.amount,
+      reason: r.reason,
+      travelerType: r.payment.visaApplication.travelerType,
+      actor: r.refundedBy,
+    })),
+    ...documents.map((d) => ({
+      type: "DOCUMENT_UPLOADED",
+      occurredAt: d.createdAt,
+      fileName: d.fileName,
+      actor: d.uploadedBy,
+    })),
+  ];
+
+  items.sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
+  return items;
 };

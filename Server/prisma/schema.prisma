@@ -27,6 +27,8 @@ model User {
   expensesPaid               Expense[]            @relation("ExpensesPaid")
   refundsIssued              Refund[]             @relation("RefundsIssued")
   accountTransactionsCreated AccountTransaction[]
+  caseNotesAuthored          CaseNote[]
+  caseEventsActed            CaseEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -131,9 +133,57 @@ model Case {
   visaApplications VisaApplication[]
   documents        Document[]
   expenses         Expense[]
+  caseNotes        CaseNote[]
+  events           CaseEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// A user-authored, threaded note on a case — distinct from the single flat
+// `Case.notes` field (kept as-is for the case-creation/edit form) and from
+// CaseEvent below (system-recorded facts, not free text).
+model CaseNote {
+  id     String @id @default(cuid())
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id])
+
+  body String
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+enum CaseEventType {
+  CASE_CREATED
+  CASE_STATUS_CHANGED
+  VISA_STATUS_CHANGED
+  INQUIRY_STATUS_CHANGED
+}
+
+// System-recorded status-transition history — Case/VisaApplication/
+// HospitalInquiry only ever store their *current* status, so this is the only
+// place "moved from X to Y, and when, and by whom" can be reconstructed.
+model CaseEvent {
+  id     String @id @default(cuid())
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id])
+
+  type       CaseEventType
+  fromStatus String?
+  toStatus   String
+
+  visaApplicationId String?
+  inquiryId         String?
+
+  actorId String?
+  actor   User?   @relation(fields: [actorId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([caseId])
 }
 
 // ---------- Hospital matching ----------

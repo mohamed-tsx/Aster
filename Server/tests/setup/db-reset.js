@@ -4,6 +4,8 @@ import Prisma from "../../Src/Config/Prisma/db.js";
 // Order doesn't matter — CASCADE handles FK dependents (including Prisma's
 // implicit Role<->Permission join table).
 const TABLES = [
+  "CaseEvent",
+  "CaseNote",
   "AccountTransaction",
   "Refund",
   "Expense",

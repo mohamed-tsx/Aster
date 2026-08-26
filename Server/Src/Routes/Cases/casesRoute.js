@@ -12,6 +12,7 @@ import {
   markEmbassyVisitedCtrl,
   recordVisaOutcomeCtrl,
   issueRefundCtrl,
+  getCaseTimelineCtrl,
 } from "../../Controllers/Cases/casesController.js";
 import Verify from "../../Middlewares/Auth/Verify.js";
 import RequirePermission from "../../Middlewares/Auth/RequirePermission.js";
@@ -30,6 +31,7 @@ router.get(
 
 router.get("/", RequirePermission("VIEW_CASES"), listCasesCtrl);
 router.get("/:id", RequirePermission("VIEW_CASES"), getCaseCtrl);
+router.get("/:id/timeline", RequirePermission("VIEW_CASES"), getCaseTimelineCtrl);
 router.post("/", RequirePermission("CREATE_CASES"), createCaseCtrl);
 router.put("/:id", RequirePermission("UPDATE_CASES"), updateCaseCtrl);
 router.patch("/:id/cancel", RequirePermission("UPDATE_CASES"), cancelCaseCtrl);

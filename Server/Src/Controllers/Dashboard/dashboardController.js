@@ -3,6 +3,7 @@ import {
   getCaseStats,
   getFinanceStats,
   getRecentActivity,
+  getExpiringPassports,
 } from "../../Services/Dashboard/dashboardService.js";
 import { sendSuccess } from "../../Utils/Response/apiResponse.js";
 
@@ -33,4 +34,10 @@ export const getRecentActivityCtrl = asyncHandler(async (req, res) => {
   }
 
   return sendSuccess(res, "Recent activity retrieved successfully", { activity });
+});
+
+export const getExpiringPassportsCtrl = asyncHandler(async (req, res) => {
+  const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 90));
+  const passports = await getExpiringPassports(days);
+  return sendSuccess(res, "Expiring passports retrieved successfully", { passports });
 });

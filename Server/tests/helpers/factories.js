@@ -62,6 +62,11 @@ export const createCase = async ({ patientId, ...overrides } = {}) => {
   });
 };
 
+export const createHospital = async (overrides = {}) =>
+  Prisma.hospital.create({
+    data: { name: `Hospital ${unique()}`, city: "Testville", ...overrides },
+  });
+
 export const createVisaApplication = async ({ caseId, ...overrides } = {}) =>
   Prisma.visaApplication.create({
     data: {

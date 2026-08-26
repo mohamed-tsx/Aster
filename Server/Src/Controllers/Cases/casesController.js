@@ -12,6 +12,7 @@ import {
   markEmbassyVisited,
   recordVisaOutcome,
   issueRefund,
+  getCaseTimeline,
 } from "../../Services/Cases/casesService.js";
 import { sendSuccess, sendCreated } from "../../Utils/Response/apiResponse.js";
 
@@ -37,7 +38,7 @@ export const getCaseCtrl = asyncHandler(async (req, res) => {
 });
 
 export const createCaseCtrl = asyncHandler(async (req, res) => {
-  const kase = await createCase(req.body);
+  const kase = await createCase(req.body, req.user.id);
   return sendCreated(res, "Case created successfully", kase);
 });
 
@@ -47,17 +48,22 @@ export const updateCaseCtrl = asyncHandler(async (req, res) => {
 });
 
 export const sendInquiryCtrl = asyncHandler(async (req, res) => {
-  const inquiry = await sendInquiry(req.params.id, req.body);
+  const inquiry = await sendInquiry(req.params.id, req.body, req.user.id);
   return sendCreated(res, "Hospital inquiry sent successfully", inquiry);
 });
 
 export const respondInquiryCtrl = asyncHandler(async (req, res) => {
-  const inquiry = await respondToInquiry(req.params.id, req.params.inquiryId, req.body);
+  const inquiry = await respondToInquiry(
+    req.params.id,
+    req.params.inquiryId,
+    req.body,
+    req.user.id,
+  );
   return sendSuccess(res, "Hospital inquiry response recorded", inquiry);
 });
 
 export const cancelCaseCtrl = asyncHandler(async (req, res) => {
-  const kase = await cancelCase(req.params.id);
+  const kase = await cancelCase(req.params.id, req.user.id);
   return sendSuccess(res, "Case cancelled successfully", kase);
 });
 
@@ -76,6 +82,7 @@ export const markEmbassyVisitedCtrl = asyncHandler(async (req, res) => {
     req.params.id,
     req.params.visaApplicationId,
     req.body,
+    req.user.id,
   );
   return sendSuccess(res, "Embassy visit recorded successfully", visaApplication);
 });
@@ -85,8 +92,14 @@ export const recordVisaOutcomeCtrl = asyncHandler(async (req, res) => {
     req.params.id,
     req.params.visaApplicationId,
     req.body,
+    req.user.id,
   );
   return sendSuccess(res, "Visa outcome recorded successfully", visaApplication);
+});
+
+export const getCaseTimelineCtrl = asyncHandler(async (req, res) => {
+  const timeline = await getCaseTimeline(req.params.id);
+  return sendSuccess(res, "Case timeline retrieved successfully", { timeline });
 });
 
 export const issueRefundCtrl = asyncHandler(async (req, res) => {

@@ -147,3 +147,65 @@ export const getRecentActivity = async (limit = 15) => {
   items.sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
   return items.slice(0, limit);
 };
+
+const ACTIVE_CASE_STATUSES = {
+  notIn: ["CANCELLED", "COMPLETED"],
+};
+
+/**
+ * Patients/attendants on active (not cancelled/completed) cases whose
+ * passport expires within `days` from now.
+ * @param {number} days
+ */
+export const getExpiringPassports = async (days = 90) => {
+  const now = new Date();
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() + days);
+
+  const [patientCases, attendantCases] = await Promise.all([
+    Prisma.case.findMany({
+      where: {
+        status: ACTIVE_CASE_STATUSES,
+        patient: { passportExpiry: { gte: now, lte: cutoff } },
+      },
+      select: {
+        id: true,
+        caseNumber: true,
+        patient: { select: { id: true, firstName: true, lastName: true, passportExpiry: true } },
+      },
+    }),
+    Prisma.case.findMany({
+      where: {
+        status: ACTIVE_CASE_STATUSES,
+        attendant: { passportExpiry: { gte: now, lte: cutoff } },
+      },
+      select: {
+        id: true,
+        caseNumber: true,
+        attendant: { select: { id: true, firstName: true, lastName: true, passportExpiry: true } },
+      },
+    }),
+  ]);
+
+  const results = [
+    ...patientCases.map((c) => ({
+      caseId: c.id,
+      caseNumber: c.caseNumber,
+      travelerType: "PATIENT",
+      travelerId: c.patient.id,
+      name: `${c.patient.firstName} ${c.patient.lastName}`,
+      passportExpiry: c.patient.passportExpiry,
+    })),
+    ...attendantCases.map((c) => ({
+      caseId: c.id,
+      caseNumber: c.caseNumber,
+      travelerType: "ATTENDANT",
+      travelerId: c.attendant.id,
+      name: `${c.attendant.firstName} ${c.attendant.lastName}`,
+      passportExpiry: c.attendant.passportExpiry,
+    })),
+  ];
+
+  results.sort((a, b) => new Date(a.passportExpiry).getTime() - new Date(b.passportExpiry).getTime());
+  return results;
+};
