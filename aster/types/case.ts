@@ -3,6 +3,7 @@ import type { Agency } from "@/types/agency";
 import type { Hospital } from "@/types/hospital";
 import type { VisaApplication } from "@/types/visa";
 import type { CaseDocument } from "@/types/document";
+import type { Expense } from "@/types/expense";
 
 export type Attendant = {
   id: string;
@@ -69,6 +70,7 @@ export type Case = {
   inquiries: HospitalInquiry[];
   visaApplications: VisaApplication[];
   documents: CaseDocument[];
+  expenses: Expense[];
   createdAt: string;
   updatedAt: string;
 };

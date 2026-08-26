@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -101,7 +102,11 @@ export function AccountsTable() {
             )}
             {accounts.map((account) => (
               <TableRow key={account.id}>
-                <TableCell className="font-medium">{account.name}</TableCell>
+                <TableCell className="font-medium">
+                  <Link href={`/dashboard/accounts/${account.id}`} className="hover:underline">
+                    {account.name}
+                  </Link>
+                </TableCell>
                 <TableCell>
                   <Badge variant="outline">{account.type}</Badge>
                 </TableCell>

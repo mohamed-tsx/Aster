@@ -2,6 +2,7 @@ import api, { getErrorMessage } from "@/utils/api";
 import type { Case, CaseListItem, CasesListResult, HospitalInquiry } from "@/types/case";
 import type { PatientSummary } from "@/types/patient";
 import type { VisaApplication } from "@/types/visa";
+import type { Refund } from "@/types/refund";
 
 type ApiSuccess<T> = { success: boolean; message: string; data: T };
 
@@ -140,6 +141,18 @@ export async function recordVisaOutcome(
   const response = await api.patch<ApiSuccess<VisaApplication>>(
     `/cases/${caseId}/visa-applications/${visaApplicationId}/outcome`,
     withOptionalNotes(payload),
+  );
+  return unwrap(response);
+}
+
+export async function issueRefund(
+  caseId: string,
+  visaApplicationId: string,
+  payload: { accountId: string; amount: string; reason: string },
+): Promise<Refund> {
+  const response = await api.post<ApiSuccess<Refund>>(
+    `/cases/${caseId}/visa-applications/${visaApplicationId}/refund`,
+    payload,
   );
   return unwrap(response);
 }

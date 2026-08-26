@@ -229,3 +229,14 @@ export const visaOutcomeSchema = z
   });
 
 export type VisaOutcomeFormValues = z.infer<typeof visaOutcomeSchema>;
+
+export const refundSchema = z.object({
+  accountId: z.string().min(1, "Select an account"),
+  amount: z
+    .string()
+    .min(1, "Amount is required")
+    .refine((v) => Number(v) > 0, "Amount must be greater than 0"),
+  reason: z.string().min(1, "Reason is required").max(500),
+});
+
+export type RefundFormValues = z.infer<typeof refundSchema>;

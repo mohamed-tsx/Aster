@@ -45,6 +45,7 @@ import {
   ClipboardList,
   FilePlus2,
   Wallet,
+  Receipt,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -126,6 +127,13 @@ const navigation: NavigationItem[] = [
     icon: Wallet,
     children: null,
     permission: "MANAGE_ACCOUNTS",
+  },
+  {
+    name: "Expenses",
+    href: "/dashboard/expenses",
+    icon: Receipt,
+    children: null,
+    permission: "VIEW_FINANCE",
   },
   {
     name: "Settings",
@@ -569,7 +577,7 @@ export default function Sidebar() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/dashboard/profile" className="cursor-pointer">
+                    <Link href="/dashboard/settings" className="cursor-pointer">
                       <UserIcon className="mr-2 h-4 w-4" />
                       <span>Profile</span>
                     </Link>

@@ -7,12 +7,15 @@ export type VisaApplicationStatus =
 
 export type TravelerType = "PATIENT" | "ATTENDANT";
 
+import type { Refund } from "@/types/refund";
+
 export type VisaFeePayment = {
   id: string;
   amount: string;
   currency: "USD" | "INR";
   feeType: "DIRECT" | "AGENCY";
   paidAt: string;
+  refunds: Refund[];
 };
 
 export type VisaApplication = {

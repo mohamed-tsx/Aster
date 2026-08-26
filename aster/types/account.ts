@@ -12,3 +12,41 @@ export type Account = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type AccountTransactionType =
+  | "OPENING_BALANCE"
+  | "PAYMENT_RECEIVED"
+  | "EXPENSE_PAID"
+  | "REFUND_ISSUED";
+
+export type AccountTransaction = {
+  id: string;
+  type: AccountTransactionType;
+  amount: string;
+  currency: "USD" | "INR";
+  notes: string | null;
+  occurredAt: string;
+  createdBy: { id: string; firstName: string; lastName: string };
+  payment: {
+    id: string;
+    visaApplication: { id: string; travelerType: string; case: { id: string; caseNumber: string } };
+  } | null;
+  expense: {
+    id: string;
+    category: string;
+    case: { id: string; caseNumber: string } | null;
+  } | null;
+  refund: {
+    id: string;
+    reason: string;
+    payment: { visaApplication: { case: { id: string; caseNumber: string } } };
+  } | null;
+};
+
+export type AccountTransactionsListResult = {
+  transactions: AccountTransaction[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
