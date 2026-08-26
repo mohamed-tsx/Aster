@@ -48,7 +48,7 @@ export default function FinanceSummaryReportPage() {
         return;
       }
 
-      exportToPdf(
+      await exportToPdf(
         `finance-summary-${new Date().toISOString().slice(0, 10)}`,
         "Finance Summary",
         rows,

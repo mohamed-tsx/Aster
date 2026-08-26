@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { PDF_COLORS, drawLetterhead, drawFooter } from "@/lib/pdf-branding";
 
 export type ExportColumn<T> = { header: string; value: (row: T) => string | number };
 
@@ -33,23 +34,37 @@ export function exportToExcel<T>(filename: string, rows: T[], columns: ExportCol
   XLSX.writeFile(workbook, `${filename}.xlsx`);
 }
 
-export function exportToPdf<T>(
+export async function exportToPdf<T>(
   filename: string,
   title: string,
   rows: T[],
   columns: ExportColumn<T>[],
 ) {
   const doc = new jsPDF();
-  doc.setFontSize(14);
-  doc.text(title, 14, 16);
-  doc.setFontSize(9);
-  doc.text(new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date()), 14, 22);
+  const startY = await drawLetterhead(doc, title);
 
   autoTable(doc, {
-    startY: 28,
+    startY,
+    margin: { left: 14, right: 14 },
     head: [columns.map((col) => col.header)],
     body: rows.map((row) => columns.map((col) => col.value(row))),
-    styles: { fontSize: 9 },
+    styles: {
+      font: "Poppins",
+      fontSize: 9,
+      textColor: PDF_COLORS.text,
+      lineColor: PDF_COLORS.soft,
+      lineWidth: 0.2,
+      cellPadding: 3,
+    },
+    headStyles: {
+      font: "Poppins",
+      fontStyle: "bold",
+      fillColor: PDF_COLORS.primary,
+      textColor: PDF_COLORS.white,
+      halign: "left",
+    },
+    alternateRowStyles: { fillColor: PDF_COLORS.soft },
+    didDrawPage: () => drawFooter(doc),
   });
 
   doc.save(`${filename}.pdf`);
