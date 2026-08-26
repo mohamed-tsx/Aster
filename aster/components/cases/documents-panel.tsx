@@ -63,7 +63,7 @@ export function DocumentsPanel({ kase, onChanged }: DocumentsPanelProps) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base">Documents</CardTitle>
-        {hasPermission("UPDATE_CASES") && (
+        {kase.status !== "CANCELLED" && hasPermission("UPDATE_CASES") && (
           <Button size="sm" onClick={() => setUploadOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Upload
@@ -89,7 +89,7 @@ export function DocumentsPanel({ kase, onChanged }: DocumentsPanelProps) {
                   <Download className="h-4 w-4" />
                 </a>
               </Button>
-              {hasPermission("DELETE_CASES") && (
+              {kase.status !== "CANCELLED" && hasPermission("DELETE_CASES") && (
                 <Button
                   variant="ghost"
                   size="icon"

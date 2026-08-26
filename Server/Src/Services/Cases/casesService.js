@@ -593,6 +593,15 @@ export const recordFeePayment = async (caseId, visaApplicationId, data, userId) 
   if (!visaApplication || visaApplication.caseId !== caseId) {
     throw new AppError("Visa application not found", 404, "NOT_FOUND");
   }
+
+  const kase = await Prisma.case.findUnique({ where: { id: caseId } });
+  if (!kase) {
+    throw new AppError("Case not found", 404, "NOT_FOUND");
+  }
+  if (kase.status === "CANCELLED") {
+    throw new AppError("This case has been cancelled", 400, "VALIDATION_ERROR");
+  }
+
   if (visaApplication.status !== "PENDING") {
     throw new AppError(
       "This visa application's fee has already been recorded",
@@ -612,11 +621,6 @@ export const recordFeePayment = async (caseId, visaApplicationId, data, userId) 
   const account = await Prisma.account.findUnique({ where: { id: accountId } });
   if (!account) {
     throw new AppError("Account not found", 404, "NOT_FOUND");
-  }
-
-  const kase = await Prisma.case.findUnique({ where: { id: caseId } });
-  if (!kase) {
-    throw new AppError("Case not found", 404, "NOT_FOUND");
   }
 
   // Case.status only moves to VISA_PROCESSING on this case's *first* fee payment —
@@ -685,6 +689,15 @@ export const markEmbassyVisited = async (caseId, visaApplicationId, data) => {
   if (!visaApplication || visaApplication.caseId !== caseId) {
     throw new AppError("Visa application not found", 404, "NOT_FOUND");
   }
+
+  const kase = await Prisma.case.findUnique({ where: { id: caseId } });
+  if (!kase) {
+    throw new AppError("Case not found", 404, "NOT_FOUND");
+  }
+  if (kase.status === "CANCELLED") {
+    throw new AppError("This case has been cancelled", 400, "VALIDATION_ERROR");
+  }
+
   if (visaApplication.status !== "FEE_PAID") {
     throw new AppError(
       "The visa-registration fee must be paid before recording an embassy visit",
@@ -721,6 +734,15 @@ export const recordVisaOutcome = async (caseId, visaApplicationId, data) => {
   if (!visaApplication || visaApplication.caseId !== caseId) {
     throw new AppError("Visa application not found", 404, "NOT_FOUND");
   }
+
+  const kase = await Prisma.case.findUnique({ where: { id: caseId } });
+  if (!kase) {
+    throw new AppError("Case not found", 404, "NOT_FOUND");
+  }
+  if (kase.status === "CANCELLED") {
+    throw new AppError("This case has been cancelled", 400, "VALIDATION_ERROR");
+  }
+
   if (visaApplication.status !== "EMBASSY_VISITED") {
     throw new AppError(
       "The embassy visit must be recorded before a visa outcome",

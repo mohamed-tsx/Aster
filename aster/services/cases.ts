@@ -94,6 +94,20 @@ export async function respondToInquiry(
   return unwrap(response);
 }
 
+// Omits `notes` entirely when its trimmed value is empty, rather than sending
+// `notes: ""`. The backend's three visa-application actions treat an *absent*
+// `notes` key as "leave the existing value alone" but a present-but-blank string
+// as "clear it" — so always sending `notes: ""` for an unfilled optional field
+// would silently null out a note recorded at an earlier step (e.g. the outcome
+// dialog's blank default nulling the embassy-visit note).
+function withOptionalNotes<T extends { notes?: string }>(payload: T): T {
+  const { notes, ...rest } = payload;
+  if (notes === undefined || notes.trim() === "") {
+    return rest as T;
+  }
+  return { ...rest, notes } as T;
+}
+
 export async function recordFeePayment(
   caseId: string,
   visaApplicationId: string,
@@ -101,7 +115,7 @@ export async function recordFeePayment(
 ): Promise<VisaApplication> {
   const response = await api.post<ApiSuccess<VisaApplication>>(
     `/cases/${caseId}/visa-applications/${visaApplicationId}/fee-payment`,
-    payload,
+    withOptionalNotes(payload),
   );
   return unwrap(response);
 }
@@ -113,7 +127,7 @@ export async function markEmbassyVisited(
 ): Promise<VisaApplication> {
   const response = await api.patch<ApiSuccess<VisaApplication>>(
     `/cases/${caseId}/visa-applications/${visaApplicationId}/embassy-visit`,
-    payload,
+    withOptionalNotes(payload),
   );
   return unwrap(response);
 }
@@ -125,7 +139,7 @@ export async function recordVisaOutcome(
 ): Promise<VisaApplication> {
   const response = await api.patch<ApiSuccess<VisaApplication>>(
     `/cases/${caseId}/visa-applications/${visaApplicationId}/outcome`,
-    payload,
+    withOptionalNotes(payload),
   );
   return unwrap(response);
 }

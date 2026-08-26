@@ -20,6 +20,7 @@ import casesRoutes from "../../Src/Routes/Cases/casesRoute.js";
 import documentsRoutes from "../../Src/Routes/Documents/documentsRoute.js";
 import accountsRoutes from "../../Src/Routes/Accounts/accountsRoute.js";
 import Verify from "../../Src/Middlewares/Auth/Verify.js";
+import RequirePermission from "../../Src/Middlewares/Auth/RequirePermission.js";
 
 // Import enhanced error handler middleware
 import {
@@ -85,6 +86,19 @@ Server.use(express.json());
 Server.use(cookieParser()); // Handle cookies
 Server.use("/api/v1", apiLimiter);
 Server.use("/api/v1/auth", authLimiter);
+// Case documents (passport scans, visa copies, etc.) are sensitive — beyond being
+// logged in, a requester must hold VIEW_CASES to fetch them. This more-specific
+// route is mounted before the generic "/uploads" route below so it takes
+// precedence for document requests (Express matches middleware in registration
+// order, and express.static ends the response once it finds a file); avatar
+// requests and anything else under "/uploads" still fall through to the generic
+// route.
+Server.use(
+  "/uploads/documents",
+  Verify,
+  RequirePermission("VIEW_CASES"),
+  express.static(path.join(__dirname, "../../uploads/documents/")),
+);
 Server.use(
   "/uploads",
   Verify,

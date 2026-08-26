@@ -3,3 +3,10 @@ node_modules
 .env
 
 /src/generated/prisma
+
+# Uploaded case documents / avatars — user content, not source
+/uploads/
+
+# Manual curl-testing cookie jars (this codebase's docs/plans use this filename
+# convention) — may contain live JWT tokens, must never be committed
+cookies.txt

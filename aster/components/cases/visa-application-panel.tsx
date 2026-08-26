@@ -119,8 +119,13 @@ export function VisaApplicationPanel({ kase, onChanged }: VisaApplicationPanelPr
                 Visa number: {visaApplication.visaNumber}
               </p>
             )}
+            {visaApplication.notes && (
+              <p className="mt-1 text-xs">{visaApplication.notes}</p>
+            )}
 
-            {visaApplication.status === "PENDING" && hasPermission("MANAGE_FINANCE") && (
+            {kase.status !== "CANCELLED" &&
+              visaApplication.status === "PENDING" &&
+              hasPermission("MANAGE_FINANCE") && (
               <Button
                 size="sm"
                 className="mt-2"
@@ -129,7 +134,9 @@ export function VisaApplicationPanel({ kase, onChanged }: VisaApplicationPanelPr
                 Record fee payment
               </Button>
             )}
-            {visaApplication.status === "FEE_PAID" && hasPermission("UPDATE_CASES") && (
+            {kase.status !== "CANCELLED" &&
+              visaApplication.status === "FEE_PAID" &&
+              hasPermission("UPDATE_CASES") && (
               <Button
                 size="sm"
                 variant="outline"
@@ -139,7 +146,9 @@ export function VisaApplicationPanel({ kase, onChanged }: VisaApplicationPanelPr
                 Mark embassy visited
               </Button>
             )}
-            {visaApplication.status === "EMBASSY_VISITED" && hasPermission("UPDATE_CASES") && (
+            {kase.status !== "CANCELLED" &&
+              visaApplication.status === "EMBASSY_VISITED" &&
+              hasPermission("UPDATE_CASES") && (
               <Button
                 size="sm"
                 variant="outline"

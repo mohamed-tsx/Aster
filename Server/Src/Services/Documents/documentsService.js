@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import Prisma from "../../Config/Prisma/db.js";
 import { AppError } from "../../Utils/ErrorHandler/errorHandler.js";
 import { saveDocumentLocal, deleteDocumentFile } from "../../Utils/Documents/saveDocumentLocal.js";
@@ -35,24 +36,22 @@ export const uploadDocumentForCase = async (caseId, data, file, userId) => {
     );
   }
 
-  // Create the row first (with a placeholder fileUrl) to get an id to name the file
-  // after, then update fileUrl once the file is written — avoids needing a separate
-  // ID-generation step outside Prisma.
-  const created = await Prisma.document.create({
+  // Generate the id before touching the database and write the file to disk first.
+  // If the write fails, nothing has touched the database — the failure mode is an
+  // orphan file on disk (harmless), not a Document row with a permanently broken
+  // fileUrl.
+  const documentId = crypto.randomUUID();
+  const fileUrl = await saveDocumentLocal(file.buffer, caseId, documentId, file.mimetype);
+
+  return Prisma.document.create({
     data: {
+      id: documentId,
       caseId,
       type,
       fileName: file.originalname,
-      fileUrl: "",
+      fileUrl,
       uploadedById: userId,
     },
-  });
-
-  const fileUrl = await saveDocumentLocal(file.buffer, caseId, created.id, file.mimetype);
-
-  return Prisma.document.update({
-    where: { id: created.id },
-    data: { fileUrl },
   });
 };
 
