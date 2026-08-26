@@ -3,6 +3,7 @@ import type { Case, CaseListItem, CasesListResult, HospitalInquiry } from "@/typ
 import type { PatientSummary } from "@/types/patient";
 import type { VisaApplication } from "@/types/visa";
 import type { Refund } from "@/types/refund";
+import type { CaseTimelineItem } from "@/types/timeline";
 
 type ApiSuccess<T> = { success: boolean; message: string; data: T };
 
@@ -155,6 +156,20 @@ export async function issueRefund(
     payload,
   );
   return unwrap(response);
+}
+
+export async function getCaseTimeline(caseId: string): Promise<CaseTimelineItem[]> {
+  const response = await api.get<ApiSuccess<{ timeline: CaseTimelineItem[] }>>(
+    `/cases/${caseId}/timeline`,
+  );
+  return unwrap(response).timeline;
+}
+
+export async function createCaseNote(caseId: string, body: string): Promise<void> {
+  const response = await api.post<ApiSuccess<unknown>>(`/cases/${caseId}/notes`, { body });
+  if (!response.data.success) {
+    throw new Error(response.data.message || "Request failed");
+  }
 }
 
 export { getErrorMessage };

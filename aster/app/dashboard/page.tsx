@@ -5,9 +5,15 @@ import { Loader2 } from "lucide-react";
 import { CasePipelineCard } from "@/components/dashboard/case-pipeline-card";
 import { FinanceSnapshotCard } from "@/components/dashboard/finance-snapshot-card";
 import { RecentActivityCard } from "@/components/dashboard/recent-activity-card";
+import { ExpiringPassportsCard } from "@/components/dashboard/expiring-passports-card";
 import { useRBAC } from "@/hooks/useRBAC";
-import { getCaseStats, getFinanceStats, getRecentActivity } from "@/services/dashboard";
-import type { ActivityItem, CaseStats, FinanceStats } from "@/types/dashboard";
+import {
+  getCaseStats,
+  getFinanceStats,
+  getRecentActivity,
+  getExpiringPassports,
+} from "@/services/dashboard";
+import type { ActivityItem, CaseStats, ExpiringPassport, FinanceStats } from "@/types/dashboard";
 
 export default function DashboardHome() {
   const { hasPermission, user } = useRBAC();
@@ -17,6 +23,7 @@ export default function DashboardHome() {
   const [caseStats, setCaseStats] = useState<CaseStats | null>(null);
   const [financeStats, setFinanceStats] = useState<FinanceStats | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [expiringPassports, setExpiringPassports] = useState<ExpiringPassport[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,18 +36,21 @@ export default function DashboardHome() {
       canViewCases ? getCaseStats() : Promise.resolve(null),
       canViewFinance ? getFinanceStats() : Promise.resolve(null),
       canViewCases ? getRecentActivity(10) : Promise.resolve([]),
+      canViewCases ? getExpiringPassports(90) : Promise.resolve([]),
     ])
-      .then(([cases, finance, recent]) => {
+      .then(([cases, finance, recent, expiring]) => {
         if (cancelled) return;
         setCaseStats(cases);
         setFinanceStats(finance);
         setActivity(recent);
+        setExpiringPassports(expiring);
       })
       .catch(() => {
         if (!cancelled) {
           setCaseStats(null);
           setFinanceStats(null);
           setActivity([]);
+          setExpiringPassports([]);
         }
       })
       .finally(() => {
@@ -68,6 +78,8 @@ export default function DashboardHome() {
           {user ? `Welcome back, ${user.firstName}.` : "Welcome."}
         </p>
       </div>
+
+      {canViewCases && <ExpiringPassportsCard passports={expiringPassports} />}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {caseStats && <CasePipelineCard stats={caseStats} />}

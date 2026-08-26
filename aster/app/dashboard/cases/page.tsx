@@ -6,6 +6,7 @@ import { Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/users/page-header";
 import { CasesTable } from "@/components/cases/cases-table";
+import { CaseFilters, type CaseFiltersValue } from "@/components/cases/case-filters";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { usePagination } from "@/hooks/use-pagination";
 import { usePermissionGuard } from "@/hooks/use-permission-guard";
@@ -18,13 +19,26 @@ export default function CasesPage() {
   const { hasPermission } = useRBAC();
   const [cases, setCases] = useState<CaseListItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const { page, limit, setPage, setLimit } = usePagination();
+  const { page, limit, setPage, setLimit, resetPage } = usePagination();
   const [total, setTotal] = useState(0);
+  const [filters, setFilters] = useState<CaseFiltersValue>({
+    status: "",
+    reachOutType: "",
+    assignedToId: "",
+    q: "",
+  });
 
   const fetchCases = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await listCases({ page, limit });
+      const result = await listCases({
+        page,
+        limit,
+        status: filters.status || undefined,
+        reachOutType: filters.reachOutType || undefined,
+        assignedToId: filters.assignedToId || undefined,
+        q: filters.q || undefined,
+      });
       setCases(result.cases);
       setTotal(result.total);
     } catch (error) {
@@ -33,7 +47,12 @@ export default function CasesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit]);
+  }, [page, limit, filters]);
+
+  const handleFiltersChange = (next: CaseFiltersValue) => {
+    setFilters(next);
+    resetPage();
+  };
 
   useEffect(() => {
     fetchCases();
@@ -62,6 +81,8 @@ export default function CasesPage() {
           </>
         }
       />
+
+      <CaseFilters value={filters} onChange={handleFiltersChange} />
 
       <CasesTable cases={cases} loading={loading} />
 

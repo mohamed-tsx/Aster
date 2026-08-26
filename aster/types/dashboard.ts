@@ -20,6 +20,15 @@ export type ActivityType =
   | "REFUND_ISSUED"
   | "DOCUMENT_UPLOADED";
 
+export type ExpiringPassport = {
+  caseId: string;
+  caseNumber: string;
+  travelerType: "PATIENT" | "ATTENDANT";
+  travelerId: string;
+  name: string;
+  passportExpiry: string;
+};
+
 export type ActivityItem = {
   type: ActivityType;
   occurredAt: string;

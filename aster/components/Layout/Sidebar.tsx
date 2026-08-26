@@ -46,6 +46,7 @@ import {
   FilePlus2,
   Wallet,
   Receipt,
+  FileBarChart,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -134,6 +135,26 @@ const navigation: NavigationItem[] = [
     icon: Receipt,
     children: null,
     permission: "VIEW_FINANCE",
+  },
+  {
+    name: "Reports",
+    href: "/dashboard/reports/cases",
+    icon: FileBarChart,
+    children: [
+      { name: "Case List", href: "/dashboard/reports/cases", icon: List, permission: "VIEW_CASES" },
+      {
+        name: "Account Ledger",
+        href: "/dashboard/reports/ledger",
+        icon: Wallet,
+        permission: "MANAGE_ACCOUNTS",
+      },
+      {
+        name: "Finance Summary",
+        href: "/dashboard/reports/finance",
+        icon: FileBarChart,
+        permission: "VIEW_FINANCE",
+      },
+    ],
   },
   {
     name: "Settings",

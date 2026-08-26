@@ -1,5 +1,5 @@
 import api, { getErrorMessage } from "@/utils/api";
-import type { ActivityItem, CaseStats, FinanceStats } from "@/types/dashboard";
+import type { ActivityItem, CaseStats, ExpiringPassport, FinanceStats } from "@/types/dashboard";
 
 type ApiSuccess<T> = { success: boolean; message: string; data: T };
 
@@ -26,6 +26,14 @@ export async function getRecentActivity(limit = 15): Promise<ActivityItem[]> {
     { params: { limit } },
   );
   return unwrap(response).activity;
+}
+
+export async function getExpiringPassports(days = 90): Promise<ExpiringPassport[]> {
+  const response = await api.get<ApiSuccess<{ passports: ExpiringPassport[] }>>(
+    "/dashboard/expiring-passports",
+    { params: { days } },
+  );
+  return unwrap(response).passports;
 }
 
 export { getErrorMessage };

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { PageHeader } from "@/components/users/page-header";
 import { CaseDetailView } from "@/components/cases/case-detail-view";
+import { CaseActivityPanel } from "@/components/cases/case-activity-panel";
 import { HospitalInquiryPanel } from "@/components/cases/hospital-inquiry-panel";
 import { VisaApplicationPanel } from "@/components/cases/visa-application-panel";
 import { DocumentsPanel } from "@/components/cases/documents-panel";
@@ -88,6 +89,7 @@ export default function CaseDetailPage({ params }: PageProps) {
       />
 
       <CaseDetailView kase={kase} />
+      <CaseActivityPanel caseId={id} />
       <HospitalInquiryPanel kase={kase} onChanged={refetch} />
       <VisaApplicationPanel kase={kase} onChanged={refetch} />
       <ExpensesPanel kase={kase} onChanged={refetch} />
