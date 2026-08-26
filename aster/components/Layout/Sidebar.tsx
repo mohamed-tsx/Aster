@@ -47,6 +47,7 @@ import {
   Wallet,
   Receipt,
   FileBarChart,
+  History,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -126,8 +127,20 @@ const navigation: NavigationItem[] = [
     name: "Accounts",
     href: "/dashboard/accounts",
     icon: Wallet,
-    children: null,
-    permission: "MANAGE_ACCOUNTS",
+    children: [
+      {
+        name: "All Accounts",
+        href: "/dashboard/accounts",
+        icon: Wallet,
+        permission: "MANAGE_ACCOUNTS",
+      },
+      {
+        name: "All Transactions",
+        href: "/dashboard/accounts/transactions",
+        icon: History,
+        permission: "VIEW_FINANCE",
+      },
+    ],
   },
   {
     name: "Expenses",

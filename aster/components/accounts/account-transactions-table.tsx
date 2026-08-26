@@ -21,16 +21,16 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
-const TYPE_LABEL: Record<AccountTransactionType, string> = {
+export const TYPE_LABEL: Record<AccountTransactionType, string> = {
   OPENING_BALANCE: "Opening balance",
   PAYMENT_RECEIVED: "Payment received",
   EXPENSE_PAID: "Expense paid",
   REFUND_ISSUED: "Refund issued",
 };
 
-const CREDIT_TYPES = new Set<AccountTransactionType>(["OPENING_BALANCE", "PAYMENT_RECEIVED"]);
+export const CREDIT_TYPES = new Set<AccountTransactionType>(["OPENING_BALANCE", "PAYMENT_RECEIVED"]);
 
-function describe(transaction: AccountTransaction): { text: string; caseId: string | null } {
+export function describe(transaction: AccountTransaction): { text: string; caseId: string | null } {
   if (transaction.payment) {
     const kase = transaction.payment.visaApplication.case;
     return { text: `Case ${kase.caseNumber} · ${transaction.payment.visaApplication.travelerType}`, caseId: kase.id };
@@ -52,9 +52,15 @@ function describe(transaction: AccountTransaction): { text: string; caseId: stri
 type AccountTransactionsTableProps = {
   transactions: AccountTransaction[];
   loading?: boolean;
+  /** Adds an Account column — for the cross-account "all transactions" view. */
+  showAccount?: boolean;
 };
 
-export function AccountTransactionsTable({ transactions, loading }: AccountTransactionsTableProps) {
+export function AccountTransactionsTable({
+  transactions,
+  loading,
+  showAccount = false,
+}: AccountTransactionsTableProps) {
   if (loading) {
     return (
       <div className="space-y-2 rounded-lg border p-4">
@@ -79,6 +85,7 @@ export function AccountTransactionsTable({ transactions, loading }: AccountTrans
         <TableHeader>
           <TableRow>
             <TableHead>Type</TableHead>
+            {showAccount && <TableHead>Account</TableHead>}
             <TableHead>Details</TableHead>
             <TableHead>Amount</TableHead>
             <TableHead>By</TableHead>
@@ -96,6 +103,20 @@ export function AccountTransactionsTable({ transactions, loading }: AccountTrans
                     {TYPE_LABEL[transaction.type]}
                   </Badge>
                 </TableCell>
+                {showAccount && (
+                  <TableCell>
+                    {transaction.account ? (
+                      <Link
+                        href={`/dashboard/accounts/${transaction.account.id}`}
+                        className="hover:underline"
+                      >
+                        {transaction.account.name}
+                      </Link>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
+                )}
                 <TableCell>
                   {caseId ? (
                     <Link href={`/dashboard/cases/${caseId}`} className="hover:underline">

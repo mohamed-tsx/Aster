@@ -92,6 +92,25 @@ export const listAccountTransactions = async (accountId, { page = 1, limit = 20 
   return { transactions, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
 };
 
+/**
+ * Same shape as `listAccountTransactions`, but across every account — for
+ * the "every single transaction we made" report, not one account's ledger.
+ * @param {{ page?: number, limit?: number }} params
+ */
+export const listAllAccountTransactions = async ({ page = 1, limit = 20 } = {}) => {
+  const [transactions, total] = await Promise.all([
+    Prisma.accountTransaction.findMany({
+      include: { ...TRANSACTION_LIST_INCLUDE, account: { select: { id: true, name: true } } },
+      orderBy: { occurredAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    Prisma.accountTransaction.count(),
+  ]);
+
+  return { transactions, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
+};
+
 export const listAccounts = async () => {
   const accounts = await Prisma.account.findMany({
     where: { isActive: true },

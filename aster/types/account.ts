@@ -41,6 +41,8 @@ export type AccountTransaction = {
     reason: string;
     payment: { visaApplication: { case: { id: string; caseNumber: string } } };
   } | null;
+  /** Only present on the cross-account "all transactions" listing. */
+  account?: { id: string; name: string };
 };
 
 export type AccountTransactionsListResult = {

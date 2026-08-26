@@ -3,6 +3,7 @@ import {
   listAccounts,
   createAccount,
   listAccountTransactions,
+  listAllAccountTransactions,
 } from "../../Services/Accounts/accountsService.js";
 import { sendSuccess, sendCreated } from "../../Utils/Response/apiResponse.js";
 
@@ -23,5 +24,15 @@ export const listAccountTransactionsCtrl = asyncHandler(async (req, res) => {
   const limit = Math.min(100, Math.max(1, rawLimit));
 
   const result = await listAccountTransactions(req.params.id, { page, limit });
+  return sendSuccess(res, "Account transactions retrieved successfully", result);
+});
+
+export const listAllAccountTransactionsCtrl = asyncHandler(async (req, res) => {
+  const rawPage = parseInt(req.query.page, 10) || 1;
+  const rawLimit = parseInt(req.query.limit, 10) || 20;
+  const page = Math.max(1, rawPage);
+  const limit = Math.min(100, Math.max(1, rawLimit));
+
+  const result = await listAllAccountTransactions({ page, limit });
   return sendSuccess(res, "Account transactions retrieved successfully", result);
 });

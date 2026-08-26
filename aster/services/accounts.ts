@@ -32,4 +32,14 @@ export async function listAccountTransactions(
   return unwrap(response);
 }
 
+export async function listAllAccountTransactions(
+  params: { page?: number; limit?: number } = {},
+): Promise<AccountTransactionsListResult> {
+  const response = await api.get<ApiSuccess<AccountTransactionsListResult>>(
+    "/accounts/transactions",
+    { params: { page: params.page ?? 1, limit: params.limit ?? 20 } },
+  );
+  return unwrap(response);
+}
+
 export { getErrorMessage };

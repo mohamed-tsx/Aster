@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { AppError } from "../../Src/Utils/ErrorHandler/errorHandler.js";
-import { listAccountTransactions } from "../../Src/Services/Accounts/accountsService.js";
+import {
+  listAccountTransactions,
+  listAllAccountTransactions,
+} from "../../Src/Services/Accounts/accountsService.js";
 import { createExpense } from "../../Src/Services/Expenses/expensesService.js";
 import {
   createUser,
@@ -63,5 +66,49 @@ describe("listAccountTransactions", () => {
     await expect(listAccountTransactions("does-not-exist", { page: 1, limit: 20 })).rejects.toThrow(
       AppError,
     );
+  });
+});
+
+describe("listAllAccountTransactions", () => {
+  it("lists transactions across every account, newest first, with the account attached", async () => {
+    const user = await createUser();
+    const accountA = await createAccount({ name: "Account A" });
+    const accountB = await createAccount({ name: "Account B" });
+
+    await createExpense(
+      { category: "From A", amount: 10, currency: "USD", accountId: accountA.id },
+      user.id,
+    );
+    await createExpense(
+      { category: "From B", amount: 20, currency: "USD", accountId: accountB.id },
+      user.id,
+    );
+
+    const result = await listAllAccountTransactions({ page: 1, limit: 20 });
+
+    expect(result.total).toBe(2);
+    expect(result.transactions).toHaveLength(2);
+    expect(result.transactions[0].expense.category).toBe("From B");
+    expect(result.transactions[0].account.name).toBe("Account B");
+    expect(result.transactions[1].account.name).toBe("Account A");
+  });
+
+  it("paginates across all accounts", async () => {
+    const user = await createUser();
+    const account = await createAccount();
+    for (let i = 0; i < 3; i++) {
+      await createExpense(
+        { category: `Expense ${i}`, amount: 10, currency: "USD", accountId: account.id },
+        user.id,
+      );
+    }
+
+    const page1 = await listAllAccountTransactions({ page: 1, limit: 2 });
+    expect(page1.transactions).toHaveLength(2);
+    expect(page1.total).toBe(3);
+    expect(page1.totalPages).toBe(2);
+
+    const page2 = await listAllAccountTransactions({ page: 2, limit: 2 });
+    expect(page2.transactions).toHaveLength(1);
   });
 });
