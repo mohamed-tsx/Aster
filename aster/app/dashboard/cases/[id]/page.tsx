@@ -88,12 +88,18 @@ export default function CaseDetailPage({ params }: PageProps) {
         }
       />
 
-      <CaseDetailView kase={kase} />
-      <CaseActivityPanel caseId={id} />
-      <HospitalInquiryPanel kase={kase} onChanged={refetch} />
-      <VisaApplicationPanel kase={kase} onChanged={refetch} />
-      <ExpensesPanel kase={kase} onChanged={refetch} />
-      <DocumentsPanel kase={kase} onChanged={refetch} />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 space-y-6">
+          <CaseDetailView kase={kase} />
+          <HospitalInquiryPanel kase={kase} onChanged={refetch} />
+          <VisaApplicationPanel kase={kase} onChanged={refetch} />
+          <ExpensesPanel kase={kase} onChanged={refetch} />
+          <DocumentsPanel kase={kase} onChanged={refetch} />
+        </div>
+        <div className="lg:sticky lg:top-6 lg:self-start">
+          <CaseActivityPanel caseId={id} />
+        </div>
+      </div>
 
       <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <AlertDialogContent>
