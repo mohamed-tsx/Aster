@@ -15,7 +15,7 @@ export default function NotFound() {
         <div className="bg-brand-blue mb-10 rounded-xl px-5 py-3">
           <Image
             src="/aster-logo.svg"
-            alt="Aster Hospital Referral Center"
+            alt="Aster Hospital Referral Center - East Africa"
             width={140}
             height={40}
           />
@@ -34,8 +34,8 @@ export default function NotFound() {
           Page not found
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you&apos;re looking for doesn&apos;t exist or may have
-          been moved.
+          The page you&apos;re looking for doesn&apos;t exist or may have been
+          moved.
         </p>
 
         <div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
