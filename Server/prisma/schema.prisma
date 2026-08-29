@@ -29,6 +29,7 @@ model User {
   accountTransactionsCreated AccountTransaction[]
   caseNotesAuthored          CaseNote[]
   caseEventsActed            CaseEvent[]
+  appSettingsUpdated         AppSetting[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -64,8 +65,8 @@ model Patient {
   gender         Gender
   dateOfBirth    DateTime
   nationality    String
-  passportNumber String
-  passportExpiry DateTime
+  passportNumber String?
+  passportExpiry DateTime?
   phone          String
   email          String?
   address        String?
@@ -85,8 +86,8 @@ model Attendant {
   gender            Gender
   dateOfBirth       DateTime
   nationality       String
-  passportNumber    String
-  passportExpiry    DateTime
+  passportNumber    String?
+  passportExpiry    DateTime?
   phone             String
   relationToPatient String
 
@@ -364,6 +365,18 @@ model AccountTransaction {
   @@index([accountId, currency])
 }
 
+// ---------- Settings ----------
+
+model AppSetting {
+  key   String @id
+  value String
+
+  updatedById String?
+  updatedBy   User?   @relation(fields: [updatedById], references: [id])
+
+  updatedAt DateTime @updatedAt
+}
+
 // ---------- Enums ----------
 
 enum Gender {
@@ -409,6 +422,7 @@ enum VisaStatus {
 enum DocumentType {
   PATIENT_PASSPORT
   ATTENDANT_PASSPORT
+  CASE_DOCUMENT
   INVITATION_LETTER
   VISA_COPY
   OTHER

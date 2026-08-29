@@ -39,6 +39,7 @@ async function main() {
     "VIEW_FINANCE",
     "MANAGE_FINANCE",
     "ISSUE_REFUNDS",
+    "MANAGE_SETTINGS",
   ];
 
   const allPermissionNames = [
@@ -66,6 +67,17 @@ async function main() {
       permissions: { connect: permissions.map((p) => ({ id: p.id })) },
     },
   });
+
+  const SETTING_DEFAULTS = {
+    VISA_FEE_DEFAULT_DIRECT: "400",
+    VISA_FEE_DEFAULT_AGENCY: "100",
+  };
+  await Promise.all(
+    Object.entries(SETTING_DEFAULTS).map(([key, value]) =>
+      Prisma.appSetting.upsert({ where: { key }, update: {}, create: { key, value } }),
+    ),
+  );
+  console.log("🔹 Seeded app settings defaults");
 
   let admin = await Prisma.user.findUnique({
     where: { email: adminEmail },

@@ -101,3 +101,26 @@ export const createPayment = async ({
       },
     },
   });
+
+export const fakeUpload = (originalname = "file.pdf", mimetype = "application/pdf") => ({
+  buffer: Buffer.from("test-file-content"),
+  mimetype,
+  originalname,
+});
+
+// The shape Multer's .fields() puts on req.files for a case-intake request.
+export const caseIntakeFiles = () => ({
+  patientPassport: [fakeUpload("passport.jpg", "image/jpeg")],
+  caseDocument: [fakeUpload("case.pdf", "application/pdf")],
+});
+
+export const attachDocument = async ({
+  caseId,
+  type,
+  uploadedById,
+  fileName = "doc.pdf",
+  fileUrl = "/uploads/documents/test/x.pdf",
+}) =>
+  Prisma.document.create({
+    data: { caseId, type, fileName, fileUrl, uploadedById },
+  });
