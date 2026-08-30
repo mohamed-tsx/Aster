@@ -16,6 +16,7 @@ import {
   createHospital,
   caseIntakeFiles,
 } from "../helpers/factories.js";
+import { createCase as createCaseRow } from "../helpers/factories.js";
 
 const eventsFor = (caseId) =>
   Prisma.caseEvent.findMany({ where: { caseId }, orderBy: { createdAt: "asc" } });
@@ -144,5 +145,22 @@ describe("case status-change event logging", () => {
       (e) => e.type === "CASE_STATUS_CHANGED" && e.toStatus === "COMPLETED",
     );
     expect(caseCompleted).toBeTruthy();
+  });
+
+  it("allows several pending inquiries on one case, but not two to the same hospital", async () => {
+    const user = await createUser();
+    const kase = await createCaseRow();
+    const h1 = await createHospital();
+    const h2 = await createHospital();
+
+    await sendInquiry(kase.id, { hospitalId: h1.id }, user.id);
+    await sendInquiry(kase.id, { hospitalId: h2.id }, user.id); // no throw
+
+    const open = await Prisma.hospitalInquiry.findMany({ where: { caseId: kase.id, status: "PENDING" } });
+    expect(open).toHaveLength(2);
+
+    await expect(sendInquiry(kase.id, { hospitalId: h1.id }, user.id)).rejects.toThrow(
+      /already has a pending inquiry to this hospital/,
+    );
   });
 });

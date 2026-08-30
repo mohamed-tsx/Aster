@@ -13,10 +13,10 @@ export const listHospitals = async () => {
 };
 
 /**
- * @param {{ name: string, city: string, specialties?: string, contactPerson?: string, phone?: string, email?: string }} data
+ * @param {{ name: string, city: string, country: string, specialties?: string, contactPerson?: string, phone?: string, email?: string }} data
  */
 export const createHospital = async (data) => {
-  const { name, city, specialties, contactPerson, phone, email } = data;
+  const { name, city, country, specialties, contactPerson, phone, email } = data;
 
   if (!name?.trim()) {
     throw new AppError("Hospital name is required", 400, "VALIDATION_ERROR");
@@ -24,11 +24,15 @@ export const createHospital = async (data) => {
   if (!city?.trim()) {
     throw new AppError("City is required", 400, "VALIDATION_ERROR");
   }
+  if (!country?.trim()) {
+    throw new AppError("Country is required", 400, "VALIDATION_ERROR");
+  }
 
   return Prisma.hospital.create({
     data: {
       name: name.trim(),
       city: city.trim(),
+      country: country.trim(),
       specialties: specialties?.trim() || null,
       contactPerson: contactPerson?.trim() || null,
       phone: phone?.trim() || null,
@@ -40,7 +44,7 @@ export const createHospital = async (data) => {
 
 /**
  * @param {string} hospitalId
- * @param {{ name?: string, city?: string, specialties?: string, contactPerson?: string, phone?: string, email?: string }} data
+ * @param {{ name?: string, city?: string, country?: string, specialties?: string, contactPerson?: string, phone?: string, email?: string }} data
  */
 export const updateHospital = async (hospitalId, data) => {
   const hospital = await Prisma.hospital.findUnique({ where: { id: hospitalId } });
@@ -62,6 +66,13 @@ export const updateHospital = async (hospitalId, data) => {
       throw new AppError("City is required", 400, "VALIDATION_ERROR");
     }
     updateData.city = data.city.trim();
+  }
+
+  if (data.country !== undefined) {
+    if (!data.country?.trim()) {
+      throw new AppError("Country is required", 400, "VALIDATION_ERROR");
+    }
+    updateData.country = data.country.trim();
   }
 
   if (data.specialties !== undefined) updateData.specialties = data.specialties?.trim() || null;

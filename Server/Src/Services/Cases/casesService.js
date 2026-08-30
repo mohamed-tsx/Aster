@@ -51,7 +51,10 @@ const CASE_DETAIL_INCLUDE = {
   assignedTo: { select: { id: true, firstName: true, lastName: true, username: true } },
   inquiries: {
     orderBy: { sentAt: "desc" },
-    include: { hospital: true },
+    include: {
+      hospital: true,
+      documents: { orderBy: { createdAt: "desc" } },
+    },
   },
   visaApplications: {
     orderBy: { createdAt: "asc" },
@@ -557,12 +560,12 @@ export const sendInquiry = async (caseId, data, userId) => {
     throw new AppError("Hospital not found", 404, "NOT_FOUND");
   }
 
-  const pending = await Prisma.hospitalInquiry.findFirst({
-    where: { caseId, status: "PENDING" },
+  const dupe = await Prisma.hospitalInquiry.findFirst({
+    where: { caseId, hospitalId, status: "PENDING" },
   });
-  if (pending) {
+  if (dupe) {
     throw new AppError(
-      "This case already has a pending inquiry. Wait for a response before sending another.",
+      "This case already has a pending inquiry to this hospital.",
       409,
       "CONFLICT",
     );
