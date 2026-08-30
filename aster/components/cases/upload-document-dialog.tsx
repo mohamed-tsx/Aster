@@ -25,29 +25,31 @@ type UploadDocumentDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (file: File, type: DocumentType) => Promise<void>;
+  lockedType?: DocumentType;
 };
 
 const DOCUMENT_TYPE_OPTIONS: { value: DocumentType; label: string }[] = [
   { value: "PATIENT_PASSPORT", label: "Patient passport" },
   { value: "ATTENDANT_PASSPORT", label: "Attendant passport" },
+  { value: "CASE_DOCUMENT", label: "Case document" },
   { value: "INVITATION_LETTER", label: "Invitation letter" },
   { value: "VISA_COPY", label: "Visa copy" },
   { value: "OTHER", label: "Other" },
 ];
 
-export function UploadDocumentDialog({ open, onOpenChange, onSubmit }: UploadDocumentDialogProps) {
-  const [type, setType] = useState<DocumentType>("OTHER");
+export function UploadDocumentDialog({ open, onOpenChange, onSubmit, lockedType }: UploadDocumentDialogProps) {
+  const [type, setType] = useState<DocumentType>(lockedType ?? "OTHER");
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
-      setType("OTHER");
+      setType(lockedType ?? "OTHER");
       setFile(null);
       setError(null);
     }
-  }, [open]);
+  }, [open, lockedType]);
 
   const handleSubmit = async () => {
     if (!file) {
@@ -74,7 +76,11 @@ export function UploadDocumentDialog({ open, onOpenChange, onSubmit }: UploadDoc
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Document type</Label>
-            <Select value={type} onValueChange={(v) => setType(v as DocumentType)}>
+            <Select
+              value={type}
+              onValueChange={(v) => setType(v as DocumentType)}
+              disabled={!!lockedType}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>

@@ -8,15 +8,18 @@ import { FeePaymentDialog } from "@/components/cases/fee-payment-dialog";
 import { EmbassyVisitDialog } from "@/components/cases/embassy-visit-dialog";
 import { VisaOutcomeDialog } from "@/components/cases/visa-outcome-dialog";
 import { RefundDialog } from "@/components/cases/refund-dialog";
+import { UploadDocumentDialog } from "@/components/cases/upload-document-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useRBAC } from "@/hooks/useRBAC";
 import {
   recordFeePayment,
+  recordFeePaymentByTraveler,
   markEmbassyVisited,
   recordVisaOutcome,
   issueRefund,
   getErrorMessage,
 } from "@/services/cases";
+import { uploadDocument } from "@/services/documents";
 import type { RefundFormValues } from "@/lib/validations/case";
 import type { Case } from "@/types/case";
 import type { VisaApplication, VisaApplicationStatus } from "@/types/visa";
@@ -56,18 +59,41 @@ export function VisaApplicationPanel({ kase, onChanged }: VisaApplicationPanelPr
   const toast = useToast();
   const { hasPermission } = useRBAC();
   const [feePaymentTarget, setFeePaymentTarget] = useState<VisaApplication | null>(null);
+  const [agencyFeeTarget, setAgencyFeeTarget] = useState<"PATIENT" | "ATTENDANT" | null>(null);
   const [embassyVisitTarget, setEmbassyVisitTarget] = useState<VisaApplication | null>(null);
   const [outcomeTarget, setOutcomeTarget] = useState<VisaApplication | null>(null);
   const [refundTarget, setRefundTarget] = useState<VisaApplication | null>(null);
+  const [attendantPassportUploadOpen, setAttendantPassportUploadOpen] = useState(false);
 
-  if (kase.visaApplications.length === 0) return null;
+  const isAgency = kase.reachOutType === "AGENCY";
+  const showAgencyTracker =
+    isAgency && ["HOSPITAL_ACCEPTED", "VISA_PROCESSING"].includes(kase.status);
+  const attendantPassportMissing =
+    !!kase.attendant &&
+    !isAgency &&
+    !kase.documents.some((d) => d.type === "ATTENDANT_PASSPORT");
+
+  if (kase.visaApplications.length === 0 && !showAgencyTracker) return null;
+
+  const missingAgencyTravelers: ("PATIENT" | "ATTENDANT")[] = showAgencyTracker
+    ? (kase.attendant
+        ? (["PATIENT", "ATTENDANT"] as const)
+        : (["PATIENT"] as const)
+      ).filter((t) => !kase.visaApplications.some((v) => v.travelerType === t))
+    : [];
 
   const handleFeePayment = async (values: { accountId: string; amount: string; notes?: string }) => {
-    if (!feePaymentTarget) return;
     try {
-      await recordFeePayment(kase.id, feePaymentTarget.id, values);
+      if (agencyFeeTarget) {
+        await recordFeePaymentByTraveler(kase.id, { travelerType: agencyFeeTarget, ...values });
+      } else if (feePaymentTarget) {
+        await recordFeePayment(kase.id, feePaymentTarget.id, values);
+      } else {
+        return;
+      }
       toast.success("Fee payment recorded");
       setFeePaymentTarget(null);
+      setAgencyFeeTarget(null);
       onChanged();
     } catch (error) {
       toast.error("Could not record payment", getErrorMessage(error));
@@ -156,15 +182,32 @@ export function VisaApplicationPanel({ kase, onChanged }: VisaApplicationPanelPr
 
             {kase.status !== "CANCELLED" &&
               visaApplication.status === "PENDING" &&
-              hasPermission("MANAGE_FINANCE") && (
-              <Button
-                size="sm"
-                className="mt-2"
-                onClick={() => setFeePaymentTarget(visaApplication)}
-              >
-                Record fee payment
-              </Button>
-            )}
+              hasPermission("MANAGE_FINANCE") &&
+              (visaApplication.travelerType === "PATIENT" && attendantPassportMissing ? (
+                <div className="mt-2 space-y-2">
+                  <Button size="sm" disabled>
+                    Record fee payment
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Upload the attendant&apos;s passport before recording the visa fee.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setAttendantPassportUploadOpen(true)}
+                  >
+                    Upload attendant passport
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => setFeePaymentTarget(visaApplication)}
+                >
+                  Record fee payment
+                </Button>
+              ))}
             {kase.status !== "CANCELLED" &&
               visaApplication.status === "FEE_PAID" &&
               hasPermission("UPDATE_CASES") && (
@@ -201,13 +244,54 @@ export function VisaApplicationPanel({ kase, onChanged }: VisaApplicationPanelPr
             )}
           </div>
         ))}
+
+        {missingAgencyTravelers.map((traveler) => (
+          <div key={traveler} className="rounded-md border p-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">
+                {traveler === "PATIENT" ? "Patient" : "Attendant"}
+              </p>
+              <Badge variant="secondary">NOT STARTED</Badge>
+            </div>
+            {kase.status !== "CANCELLED" && hasPermission("MANAGE_FINANCE") && (
+              <Button
+                size="sm"
+                className="mt-2"
+                onClick={() => setAgencyFeeTarget(traveler)}
+              >
+                Record fee payment
+              </Button>
+            )}
+          </div>
+        ))}
       </CardContent>
 
       <FeePaymentDialog
-        open={!!feePaymentTarget}
-        onOpenChange={(open) => !open && setFeePaymentTarget(null)}
+        open={!!feePaymentTarget || !!agencyFeeTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setFeePaymentTarget(null);
+            setAgencyFeeTarget(null);
+          }
+        }}
         reachOutType={kase.reachOutType}
         onSubmit={handleFeePayment}
+      />
+      <UploadDocumentDialog
+        open={attendantPassportUploadOpen}
+        onOpenChange={setAttendantPassportUploadOpen}
+        lockedType="ATTENDANT_PASSPORT"
+        onSubmit={async (file) => {
+          try {
+            await uploadDocument(kase.id, file, "ATTENDANT_PASSPORT");
+            toast.success("Attendant passport uploaded");
+            setAttendantPassportUploadOpen(false);
+            onChanged();
+          } catch (error) {
+            toast.error("Upload failed", getErrorMessage(error));
+            throw error;
+          }
+        }}
       />
       <EmbassyVisitDialog
         open={!!embassyVisitTarget}

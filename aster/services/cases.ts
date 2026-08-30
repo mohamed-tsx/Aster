@@ -121,6 +121,17 @@ export async function recordFeePayment(
   return unwrap(response);
 }
 
+export async function recordFeePaymentByTraveler(
+  caseId: string,
+  payload: { travelerType: "PATIENT" | "ATTENDANT"; accountId: string; amount: string; notes?: string },
+): Promise<VisaApplication> {
+  const response = await api.post<ApiSuccess<VisaApplication>>(
+    `/cases/${caseId}/visa-applications/fee-payment`,
+    withOptionalNotes(payload),
+  );
+  return unwrap(response);
+}
+
 export async function markEmbassyVisited(
   caseId: string,
   visaApplicationId: string,

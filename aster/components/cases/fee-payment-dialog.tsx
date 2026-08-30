@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { feePaymentSchema, type FeePaymentFormValues } from "@/lib/validations/case";
 import { listAccounts } from "@/services/accounts";
+import { getSettings } from "@/services/settings";
 import type { Account } from "@/types/account";
 import type { ReachOutType } from "@/types/case";
 
@@ -46,12 +47,31 @@ export function FeePaymentDialog({
   reachOutType,
   onSubmit,
 }: FeePaymentDialogProps) {
-  const defaultAmount = reachOutType === "AGENCY" ? "100" : "400";
+  const [feeDefaults, setFeeDefaults] = useState<{ direct: string; agency: string }>({
+    direct: "400",
+    agency: "100",
+  });
+  const defaultAmount = reachOutType === "AGENCY" ? feeDefaults.agency : feeDefaults.direct;
   const form = useForm<FeePaymentFormValues>({
     defaultValues: { accountId: "", amount: defaultAmount, notes: "" },
   });
   const [accounts, setAccounts] = useState<Account[]>([]);
 
+  useEffect(() => {
+    getSettings()
+      .then((s) =>
+        setFeeDefaults({
+          direct: s.VISA_FEE_DEFAULT_DIRECT ?? "400",
+          agency: s.VISA_FEE_DEFAULT_AGENCY ?? "100",
+        }),
+      )
+      .catch(() => {});
+  }, []);
+
+  // `defaultAmount` is a dep so a settings fetch that resolves after the dialog is
+  // already open still populates the amount. In practice the mount fetch resolves
+  // before the dialog opens; the rare re-reset (which also refetches accounts and
+  // discards an in-progress entry) is an accepted tradeoff for the prefill.
   useEffect(() => {
     if (open) {
       form.reset({ accountId: "", amount: defaultAmount, notes: "" });
@@ -60,7 +80,7 @@ export function FeePaymentDialog({
         .catch(() => setAccounts([]));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, defaultAmount]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
