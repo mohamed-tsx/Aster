@@ -9,6 +9,7 @@ import {
   respondToInquiry,
   cancelCase,
   recordFeePayment,
+  recordFeePaymentByTraveler,
   markEmbassyVisited,
   recordVisaOutcome,
   issueRefund,
@@ -74,6 +75,11 @@ export const recordFeePaymentCtrl = asyncHandler(async (req, res) => {
     req.body,
     req.user.id,
   );
+  return sendCreated(res, "Fee payment recorded successfully", visaApplication);
+});
+
+export const recordFeePaymentByTravelerCtrl = asyncHandler(async (req, res) => {
+  const visaApplication = await recordFeePaymentByTraveler(req.params.id, req.body, req.user.id);
   return sendCreated(res, "Fee payment recorded successfully", visaApplication);
 });
 

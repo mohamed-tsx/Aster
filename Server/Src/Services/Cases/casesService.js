@@ -736,12 +736,28 @@ export const recordFeePayment = async (caseId, visaApplicationId, data, userId) 
     throw new AppError("Visa application not found", 404, "NOT_FOUND");
   }
 
-  const kase = await Prisma.case.findUnique({ where: { id: caseId } });
+  const kase = await Prisma.case.findUnique({
+    where: { id: caseId },
+    include: { attendant: true },
+  });
   if (!kase) {
     throw new AppError("Case not found", 404, "NOT_FOUND");
   }
   if (kase.status === "CANCELLED") {
     throw new AppError("This case has been cancelled", 400, "VALIDATION_ERROR");
+  }
+
+  if (!isAgencyCase(kase) && kase.attendant) {
+    const attendantPassport = await Prisma.document.findFirst({
+      where: { caseId, type: "ATTENDANT_PASSPORT" },
+    });
+    if (!attendantPassport) {
+      throw new AppError(
+        "Attendant passport must be uploaded before visa processing",
+        400,
+        "VALIDATION_ERROR",
+      );
+    }
   }
 
   if (visaApplication.status !== "PENDING") {
@@ -832,6 +848,51 @@ export const recordFeePayment = async (caseId, visaApplicationId, data, userId) 
 
   const [, updatedVisaApplication] = await Prisma.$transaction(transactionOps);
   return updatedVisaApplication;
+};
+
+/**
+ * Fee payment addressed by traveler type rather than a known VisaApplication id.
+ * Used for agency cases, whose visa applications are created lazily (they are not
+ * auto-created on hospital acceptance). Delegates to recordFeePayment once the
+ * VisaApplication is resolved.
+ * @param {string} caseId
+ * @param {{ travelerType: "PATIENT"|"ATTENDANT", accountId: string, amount: number|string, notes?: string }} data
+ * @param {string} userId
+ */
+export const recordFeePaymentByTraveler = async (caseId, data, userId) => {
+  const { travelerType } = data;
+  if (!["PATIENT", "ATTENDANT"].includes(travelerType)) {
+    throw new AppError("travelerType must be PATIENT or ATTENDANT", 400, "VALIDATION_ERROR");
+  }
+
+  const kase = await Prisma.case.findUnique({
+    where: { id: caseId },
+    include: { attendant: true },
+  });
+  if (!kase) {
+    throw new AppError("Case not found", 404, "NOT_FOUND");
+  }
+  if (travelerType === "ATTENDANT" && !kase.attendant) {
+    throw new AppError("This case has no attendant", 400, "VALIDATION_ERROR");
+  }
+
+  let visaApplication = await Prisma.visaApplication.findUnique({
+    where: { caseId_travelerType: { caseId, travelerType } },
+  });
+  if (!visaApplication) {
+    if (!isAgencyCase(kase)) {
+      throw new AppError(
+        "No visa application exists for this traveler yet",
+        400,
+        "VALIDATION_ERROR",
+      );
+    }
+    visaApplication = await Prisma.visaApplication.create({
+      data: { caseId, travelerType },
+    });
+  }
+
+  return recordFeePayment(caseId, visaApplication.id, data, userId);
 };
 
 /**

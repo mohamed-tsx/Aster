@@ -9,6 +9,7 @@ import {
   respondInquiryCtrl,
   cancelCaseCtrl,
   recordFeePaymentCtrl,
+  recordFeePaymentByTravelerCtrl,
   markEmbassyVisitedCtrl,
   recordVisaOutcomeCtrl,
   issueRefundCtrl,
@@ -50,6 +51,11 @@ router.patch(
   "/:id/inquiries/:inquiryId",
   RequirePermission("UPDATE_CASES"),
   respondInquiryCtrl,
+);
+router.post(
+  "/:id/visa-applications/fee-payment",
+  RequirePermission("MANAGE_FINANCE"),
+  recordFeePaymentByTravelerCtrl,
 );
 router.post(
   "/:id/visa-applications/:visaApplicationId/fee-payment",
