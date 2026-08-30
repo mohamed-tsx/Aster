@@ -3,6 +3,7 @@ import Prisma from "../../Config/Prisma/db.js";
 import { AppError } from "../../Utils/ErrorHandler/errorHandler.js";
 import { generateCaseNumber } from "../../Config/Generators/ID/customCaseIdGenerator.js";
 import { saveDocumentLocal } from "../../Utils/Documents/saveDocumentLocal.js";
+import { EMBASSY_PARTNERSHIP_COMMISSION_CATEGORY } from "../Expenses/expensesService.js";
 
 /**
  * Agency-sourced cases don't get their VisaApplication rows auto-created on
@@ -1126,6 +1127,14 @@ export const markEmbassyVisited = async (caseId, visaApplicationId, data, userId
     throw new AppError("embassyVisitDate is required", 400, "VALIDATION_ERROR");
   }
 
+  const commission = data.partnerCommission;
+  let commissionAccount = null;
+  if (commission && commission.amount !== undefined && commission.amount !== null && commission.amount !== "" && Number(commission.amount) > 0) {
+    if (!commission.accountId) throw new AppError("A commission account is required", 400, "VALIDATION_ERROR");
+    commissionAccount = await Prisma.account.findUnique({ where: { id: commission.accountId } });
+    if (!commissionAccount) throw new AppError("Commission account not found", 404, "NOT_FOUND");
+  }
+
   const [updated] = await Prisma.$transaction([
     Prisma.visaApplication.update({
       where: { id: visaApplicationId },
@@ -1144,6 +1153,30 @@ export const markEmbassyVisited = async (caseId, visaApplicationId, data, userId
       visaApplicationId,
       actorId: userId,
     }),
+    ...(commissionAccount
+      ? [
+          Prisma.expense.create({
+            data: {
+              category: EMBASSY_PARTNERSHIP_COMMISSION_CATEGORY,
+              amount: commission.amount,
+              currency: "USD",
+              case: { connect: { id: caseId } },
+              visaApplication: { connect: { id: visaApplicationId } },
+              paidBy: { connect: { id: userId } },
+              accountTransaction: {
+                create: {
+                  accountId: commission.accountId,
+                  type: "EXPENSE_PAID",
+                  amount: commission.amount,
+                  currency: "USD",
+                  notes: "Embassy partnership commission",
+                  createdById: userId,
+                },
+              },
+            },
+          }),
+        ]
+      : []),
   ]);
   return updated;
 };

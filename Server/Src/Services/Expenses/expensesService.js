@@ -3,6 +3,8 @@ import { AppError } from "../../Utils/ErrorHandler/errorHandler.js";
 
 const CURRENCIES = ["USD", "INR"];
 
+export const EMBASSY_PARTNERSHIP_COMMISSION_CATEGORY = "Embassy partnership commission";
+
 const EXPENSE_LIST_INCLUDE = {
   case: { select: { id: true, caseNumber: true } },
   visaApplication: { select: { id: true, travelerType: true } },
