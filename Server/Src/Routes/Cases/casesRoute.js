@@ -8,6 +8,7 @@ import {
   sendInquiryCtrl,
   respondInquiryCtrl,
   recordChosenResponseCtrl,
+  changeChosenHospitalCtrl,
   cancelCaseCtrl,
   recordFeePaymentCtrl,
   recordFeePaymentByTravelerCtrl,
@@ -61,6 +62,15 @@ router.patch(
   "/:id/inquiries/:inquiryId",
   RequirePermission("UPDATE_CASES"),
   respondInquiryCtrl,
+);
+router.post(
+  "/:id/chosen-hospital",
+  RequirePermission("RECORD_HOSPITAL_RESPONSE"),
+  uploadDocument.fields([
+    { name: "evaluationDoc", maxCount: 1 },
+    { name: "invitationLetter", maxCount: 1 },
+  ]),
+  changeChosenHospitalCtrl,
 );
 router.post(
   "/:id/visa-applications/fee-payment",

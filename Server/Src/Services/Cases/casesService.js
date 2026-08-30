@@ -794,6 +794,62 @@ export const recordChosenResponse = async (caseId, inquiryId, data, files, userI
 };
 
 /**
+ * Re-points a case's chosen hospital — allowed only until the first visa fee is paid.
+ * @param {string} caseId
+ * @param {string} newInquiryId
+ * @param {{ treatmentCostEstimate: number|string, currency: string, notes?: string }} data
+ * @param {{ evaluationDoc?: {buffer,mimetype,originalname}[], invitationLetter?: {buffer,mimetype,originalname}[] }} files
+ * @param {string} userId
+ */
+export const changeChosenHospital = async (caseId, newInquiryId, data, files, userId) => {
+  const kase = await Prisma.case.findUnique({ where: { id: caseId } });
+  if (!kase) throw new AppError("Case not found", 404, "NOT_FOUND");
+  if (kase.status === "CANCELLED") throw new AppError("This case has been cancelled", 400, "VALIDATION_ERROR");
+
+  const current = await Prisma.hospitalInquiry.findFirst({ where: { caseId, isChosen: true } });
+  if (!current) throw new AppError("This case has no chosen hospital yet", 400, "VALIDATION_ERROR");
+
+  const paid = await Prisma.payment.findFirst({ where: { visaApplication: { caseId } } });
+  if (paid) throw new AppError("The hospital cannot be changed after a visa fee has been paid", 400, "VALIDATION_ERROR");
+
+  const next = await Prisma.hospitalInquiry.findUnique({ where: { id: newInquiryId } });
+  if (!next || next.caseId !== caseId) throw new AppError("Hospital inquiry not found", 404, "NOT_FOUND");
+  if (next.id === current.id) throw new AppError("That hospital is already the chosen one", 400, "VALIDATION_ERROR");
+  if (!["PENDING", "NOT_SELECTED"].includes(next.status)) {
+    throw new AppError("That inquiry cannot be chosen", 400, "VALIDATION_ERROR");
+  }
+
+  const { treatmentCostEstimate, currency, notes } = data;
+  if (treatmentCostEstimate === undefined || treatmentCostEstimate === null || treatmentCostEstimate === "" || Number(treatmentCostEstimate) <= 0) {
+    throw new AppError("A positive treatment cost estimate is required", 400, "VALIDATION_ERROR");
+  }
+  if (!CURRENCIES.includes(currency)) throw new AppError(`currency must be one of: ${CURRENCIES.join(", ")}`, 400, "VALIDATION_ERROR");
+  const evaluationDoc = files?.evaluationDoc?.[0] ?? null;
+  const invitationLetter = files?.invitationLetter?.[0] ?? null;
+  if (!evaluationDoc) throw new AppError("An evaluation document is required", 400, "VALIDATION_ERROR");
+  if (!invitationLetter) throw new AppError("An invitation letter is required", 400, "VALIDATION_ERROR");
+
+  return Prisma.$transaction(async (tx) => {
+    await tx.hospitalInquiry.update({ where: { id: current.id }, data: { isChosen: false, status: "NOT_SELECTED" } });
+    await tx.hospitalInquiry.update({
+      where: { id: next.id },
+      data: { isChosen: true, status: "ACCEPTED", treatmentCostEstimate, currency, notes: notes || null, respondedAt: new Date() },
+    });
+    for (const [file, type] of [[evaluationDoc, "EVALUATION_DOC"], [invitationLetter, "INVITATION_LETTER"]]) {
+      const documentId = crypto.randomUUID();
+      const fileUrl = await saveDocumentLocal(file.buffer, caseId, documentId, file.mimetype);
+      await tx.document.create({
+        data: { id: documentId, caseId, hospitalInquiryId: next.id, type, fileName: file.originalname, fileUrl, uploadedById: userId },
+      });
+    }
+    await tx.caseEvent.create({
+      data: { caseId, type: "HOSPITAL_CHANGED", fromStatus: null, toStatus: "ACCEPTED", inquiryId: next.id, actorId: userId },
+    });
+    return tx.case.findUnique({ where: { id: caseId }, include: CASE_DETAIL_INCLUDE });
+  }, { timeout: 30000 });
+};
+
+/**
  * @param {string} caseId
  * @param {string} userId
  */

@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import Prisma from "../../Src/Config/Prisma/db.js";
 import { AppError } from "../../Src/Utils/ErrorHandler/errorHandler.js";
 import { sendInquiry, recordChosenResponse, respondToInquiry } from "../../Src/Services/Cases/casesService.js";
+import { changeChosenHospital, recordFeePaymentByTraveler } from "../../Src/Services/Cases/casesService.js";
 import { createUser, createHospital, createCase, chosenResponseFiles } from "../helpers/factories.js";
+import { createAccount } from "../helpers/factories.js";
 import { createCase as createCaseRow } from "../helpers/factories.js";
 
 const agencyCase = async () => {
@@ -123,5 +125,42 @@ describe("respondToInquiry — decline only", () => {
     await expect(
       respondToInquiry(kase.id, i1.id, { status: "ACCEPTED" }, user.id),
     ).rejects.toThrow(/use the record-response action/i);
+  });
+});
+
+describe("changeChosenHospital", () => {
+  it("re-points the chosen hospital, keeps visa apps, NOT_SELECTs the old one", async () => {
+    const user = await createUser();
+    const kase = await createCase();
+    const h1 = await createHospital();
+    const h2 = await createHospital();
+    const i1 = await sendInquiry(kase.id, { hospitalId: h1.id }, user.id);
+    const i2 = await sendInquiry(kase.id, { hospitalId: h2.id }, user.id);
+    await recordChosenResponse(kase.id, i1.id, { treatmentCostEstimate: 1, currency: "USD" }, chosenResponseFiles(), user.id);
+    const visaBefore = await Prisma.visaApplication.findMany({ where: { caseId: kase.id } });
+
+    await changeChosenHospital(kase.id, i2.id, { treatmentCostEstimate: 2, currency: "USD" }, chosenResponseFiles(), user.id);
+
+    const inqs = await Prisma.hospitalInquiry.findMany({ where: { caseId: kase.id } });
+    expect(inqs.find((i) => i.id === i1.id)).toMatchObject({ isChosen: false, status: "NOT_SELECTED" });
+    expect(inqs.find((i) => i.id === i2.id)).toMatchObject({ isChosen: true, status: "ACCEPTED" });
+    const visaAfter = await Prisma.visaApplication.findMany({ where: { caseId: kase.id } });
+    expect(visaAfter.map((v) => v.id).sort()).toEqual(visaBefore.map((v) => v.id).sort());
+  });
+
+  it("is rejected once a visa fee has been paid", async () => {
+    const user = await createUser();
+    const account = await createAccount();
+    const kase = await createCase();
+    const h1 = await createHospital();
+    const h2 = await createHospital();
+    const i1 = await sendInquiry(kase.id, { hospitalId: h1.id }, user.id);
+    const i2 = await sendInquiry(kase.id, { hospitalId: h2.id }, user.id);
+    await recordChosenResponse(kase.id, i1.id, { treatmentCostEstimate: 1, currency: "USD" }, chosenResponseFiles(), user.id);
+    await recordFeePaymentByTraveler(kase.id, { travelerType: "PATIENT", accountId: account.id, amount: 100 }, user.id);
+
+    await expect(
+      changeChosenHospital(kase.id, i2.id, { treatmentCostEstimate: 2, currency: "USD" }, chosenResponseFiles(), user.id),
+    ).rejects.toThrow(/cannot be changed after a visa fee has been paid/i);
   });
 });
