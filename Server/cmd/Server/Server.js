@@ -26,6 +26,7 @@ import dashboardRoutes from "../../Src/Routes/Dashboard/dashboardRoute.js";
 import settingsRoutes from "../../Src/Routes/Settings/settingsRoute.js";
 import revenueRoutes from "../../Src/Routes/Revenue/revenueRoute.js";
 import loansRoutes from "../../Src/Routes/Loans/loansRoute.js";
+import payablesRoutes from "../../Src/Routes/Payables/payablesRoute.js";
 import Verify from "../../Src/Middlewares/Auth/Verify.js";
 import RequirePermission from "../../Src/Middlewares/Auth/RequirePermission.js";
 
@@ -126,6 +127,7 @@ Server.use("/api/v1/accounts", accountsRoutes);
 Server.use("/api/v1/expenses", expensesRoutes);
 Server.use("/api/v1/revenue", revenueRoutes);
 Server.use("/api/v1/loans", loansRoutes);
+Server.use("/api/v1/payables", payablesRoutes);
 Server.use("/api/v1/dashboard", dashboardRoutes);
 Server.use("/api/v1/settings", settingsRoutes);
 
