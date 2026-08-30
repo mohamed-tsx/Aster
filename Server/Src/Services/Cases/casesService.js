@@ -571,23 +571,33 @@ export const sendInquiry = async (caseId, data, userId) => {
     );
   }
 
-  const [inquiry] = await Prisma.$transaction([
+  const ops = [
     Prisma.hospitalInquiry.create({
       data: { caseId, hospitalId, notes: notes || null },
       include: { hospital: true },
     }),
-    Prisma.case.update({
-      where: { id: caseId },
-      data: { status: "HOSPITAL_MATCHING" },
-    }),
-    caseEventOp({
-      caseId,
-      type: "CASE_STATUS_CHANGED",
-      fromStatus: kase.status,
-      toStatus: "HOSPITAL_MATCHING",
-      actorId: userId,
-    }),
-  ]);
+  ];
+
+  // Only move the case (and log the audit event) on the real transition into
+  // HOSPITAL_MATCHING. A 2nd+ concurrent inquiry leaves the case already in
+  // HOSPITAL_MATCHING, so skip the no-op update/event.
+  if (kase.status !== "HOSPITAL_MATCHING") {
+    ops.push(
+      Prisma.case.update({
+        where: { id: caseId },
+        data: { status: "HOSPITAL_MATCHING" },
+      }),
+      caseEventOp({
+        caseId,
+        type: "CASE_STATUS_CHANGED",
+        fromStatus: kase.status,
+        toStatus: "HOSPITAL_MATCHING",
+        actorId: userId,
+      }),
+    );
+  }
+
+  const [inquiry] = await Prisma.$transaction(ops);
 
   return inquiry;
 };

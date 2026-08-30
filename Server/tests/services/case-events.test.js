@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import Prisma from "../../Src/Config/Prisma/db.js";
 import {
   createCase,
+  getCaseById,
   sendInquiry,
   respondToInquiry,
   cancelCase,
@@ -159,8 +160,37 @@ describe("case status-change event logging", () => {
     const open = await Prisma.hospitalInquiry.findMany({ where: { caseId: kase.id, status: "PENDING" } });
     expect(open).toHaveLength(2);
 
-    await expect(sendInquiry(kase.id, { hospitalId: h1.id }, user.id)).rejects.toThrow(
-      /already has a pending inquiry to this hospital/,
-    );
+    const dupe = sendInquiry(kase.id, { hospitalId: h1.id }, user.id);
+    await expect(dupe).rejects.toThrow(/already has a pending inquiry to this hospital/);
+    await expect(dupe).rejects.toMatchObject({ statusCode: 409, errorCode: "CONFLICT" });
+  });
+
+  it("logs no new CASE_STATUS_CHANGED event for a 2nd concurrent inquiry to another hospital", async () => {
+    const user = await createUser();
+    const kase = await createCaseRow();
+    const h1 = await createHospital();
+    const h2 = await createHospital();
+
+    await sendInquiry(kase.id, { hospitalId: h1.id }, user.id);
+    const afterFirst = (await eventsFor(kase.id)).filter((e) => e.type === "CASE_STATUS_CHANGED");
+    expect(afterFirst).toHaveLength(1);
+    expect(afterFirst[0].fromStatus).toBe("NEW");
+    expect(afterFirst[0].toStatus).toBe("HOSPITAL_MATCHING");
+
+    await sendInquiry(kase.id, { hospitalId: h2.id }, user.id);
+    const afterSecond = (await eventsFor(kase.id)).filter((e) => e.type === "CASE_STATUS_CHANGED");
+    expect(afterSecond).toHaveLength(1);
+  });
+
+  it("returns each inquiry with a documents array in the case detail", async () => {
+    const user = await createUser();
+    const kase = await createCaseRow();
+    const hospital = await createHospital();
+    await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
+
+    const detail = await getCaseById(kase.id);
+    expect(detail.inquiries).toHaveLength(1);
+    expect(Array.isArray(detail.inquiries[0].documents)).toBe(true);
+    expect(detail.inquiries[0]).toHaveProperty("hospital");
   });
 });
