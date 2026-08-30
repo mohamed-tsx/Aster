@@ -7,6 +7,7 @@ import {
   updateCaseCtrl,
   sendInquiryCtrl,
   respondInquiryCtrl,
+  recordChosenResponseCtrl,
   cancelCaseCtrl,
   recordFeePaymentCtrl,
   recordFeePaymentByTravelerCtrl,
@@ -47,6 +48,15 @@ router.post(
 router.put("/:id", RequirePermission("UPDATE_CASES"), updateCaseCtrl);
 router.patch("/:id/cancel", RequirePermission("UPDATE_CASES"), cancelCaseCtrl);
 router.post("/:id/inquiries", RequirePermission("UPDATE_CASES"), sendInquiryCtrl);
+router.post(
+  "/:id/inquiries/:inquiryId/response",
+  RequirePermission("RECORD_HOSPITAL_RESPONSE"),
+  uploadDocument.fields([
+    { name: "evaluationDoc", maxCount: 1 },
+    { name: "invitationLetter", maxCount: 1 },
+  ]),
+  recordChosenResponseCtrl,
+);
 router.patch(
   "/:id/inquiries/:inquiryId",
   RequirePermission("UPDATE_CASES"),

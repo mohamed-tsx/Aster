@@ -157,6 +157,27 @@ export const caseIntakeFiles = () => ({
   caseDocument: [fakeUpload("case.pdf", "application/pdf")],
 });
 
+export const chosenResponseFiles = () => ({
+  evaluationDoc: [fakeUpload("eval.pdf", "application/pdf")],
+  invitationLetter: [fakeUpload("invite.pdf", "application/pdf")],
+});
+
+// Sends an inquiry then records it as the chosen response — the post-Task-4
+// replacement for `respondToInquiry(..., { status: "ACCEPTED" })` in tests.
+export const recordChosenResponseFor = async (
+  caseId,
+  { user, hospitalId, cost = 5000, currency = "USD" } = {},
+) => {
+  const { sendInquiry, recordChosenResponse } = await import(
+    "../../Src/Services/Cases/casesService.js"
+  );
+  const hid = hospitalId || (await createHospital()).id;
+  const inquiry = await sendInquiry(caseId, { hospitalId: hid }, user.id);
+  return recordChosenResponse(
+    caseId, inquiry.id, { treatmentCostEstimate: cost, currency }, chosenResponseFiles(), user.id,
+  );
+};
+
 export const attachDocument = async ({
   caseId,
   type,

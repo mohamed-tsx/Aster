@@ -707,6 +707,115 @@ export const respondToInquiry = async (caseId, inquiryId, data, userId) => {
   return updatedInquiry;
 };
 
+const CURRENCIES = ["USD", "INR"];
+
+/**
+ * Records the chosen hospital's response — the case-advancing trigger.
+ * @param {string} caseId
+ * @param {string} inquiryId
+ * @param {{ treatmentCostEstimate: number|string, currency: string, notes?: string }} data
+ * @param {{ evaluationDoc?: {buffer,mimetype,originalname}[], invitationLetter?: {buffer,mimetype,originalname}[] }} files
+ * @param {string} userId
+ */
+export const recordChosenResponse = async (caseId, inquiryId, data, files, userId) => {
+  const kase = await Prisma.case.findUnique({
+    where: { id: caseId },
+    include: { attendant: true },
+  });
+  if (!kase) throw new AppError("Case not found", 404, "NOT_FOUND");
+  if (kase.status === "CANCELLED") {
+    throw new AppError("Cannot record a response for a cancelled case", 400, "VALIDATION_ERROR");
+  }
+
+  const inquiry = await Prisma.hospitalInquiry.findUnique({ where: { id: inquiryId } });
+  if (!inquiry || inquiry.caseId !== caseId) {
+    throw new AppError("Hospital inquiry not found", 404, "NOT_FOUND");
+  }
+
+  const alreadyChosen = await Prisma.hospitalInquiry.findFirst({ where: { caseId, isChosen: true } });
+  if (alreadyChosen) {
+    throw new AppError(
+      "This case already has a chosen hospital. Use the change-hospital action instead.",
+      400,
+      "VALIDATION_ERROR",
+    );
+  }
+
+  if (inquiry.status !== "PENDING") {
+    throw new AppError("This inquiry is no longer pending", 400, "VALIDATION_ERROR");
+  }
+
+  const { treatmentCostEstimate, currency, notes } = data;
+  if (treatmentCostEstimate === undefined || treatmentCostEstimate === null || treatmentCostEstimate === "" || Number(treatmentCostEstimate) <= 0) {
+    throw new AppError("A positive treatment cost estimate is required", 400, "VALIDATION_ERROR");
+  }
+  if (!CURRENCIES.includes(currency)) {
+    throw new AppError(`currency must be one of: ${CURRENCIES.join(", ")}`, 400, "VALIDATION_ERROR");
+  }
+  const evaluationDoc = files?.evaluationDoc?.[0] ?? null;
+  const invitationLetter = files?.invitationLetter?.[0] ?? null;
+  if (!evaluationDoc) throw new AppError("An evaluation document is required", 400, "VALIDATION_ERROR");
+  if (!invitationLetter) throw new AppError("An invitation letter is required", 400, "VALIDATION_ERROR");
+
+  const docPlan = [
+    [evaluationDoc, "EVALUATION_DOC"],
+    [invitationLetter, "INVITATION_LETTER"],
+  ];
+
+  return Prisma.$transaction(async (tx) => {
+    await tx.hospitalInquiry.update({
+      where: { id: inquiryId },
+      data: {
+        status: "ACCEPTED",
+        isChosen: true,
+        treatmentCostEstimate,
+        currency,
+        notes: notes !== undefined ? notes || null : undefined,
+        respondedAt: new Date(),
+      },
+    });
+
+    await tx.hospitalInquiry.updateMany({
+      where: { caseId, status: "PENDING", id: { not: inquiryId } },
+      data: { status: "NOT_SELECTED", respondedAt: new Date() },
+    });
+
+    for (const [file, type] of docPlan) {
+      const documentId = crypto.randomUUID();
+      const fileUrl = await saveDocumentLocal(file.buffer, caseId, documentId, file.mimetype);
+      await tx.document.create({
+        data: {
+          id: documentId,
+          caseId,
+          hospitalInquiryId: inquiryId,
+          type,
+          fileName: file.originalname,
+          fileUrl,
+          uploadedById: userId,
+        },
+      });
+    }
+
+    await tx.case.update({ where: { id: caseId }, data: { status: "HOSPITAL_ACCEPTED" } });
+
+    await tx.caseEvent.create({
+      data: { caseId, type: "CASE_STATUS_CHANGED", fromStatus: kase.status, toStatus: "HOSPITAL_ACCEPTED", actorId: userId },
+    });
+    await tx.caseEvent.create({
+      data: { caseId, type: "HOSPITAL_CHOSEN", fromStatus: null, toStatus: "ACCEPTED", inquiryId, actorId: userId },
+    });
+
+    if (!isAgencyCase(kase)) {
+      await tx.visaApplication.create({ data: { caseId, travelerType: "PATIENT" } });
+      if (kase.attendant) {
+        await tx.visaApplication.create({ data: { caseId, travelerType: "ATTENDANT" } });
+      }
+    }
+
+    return tx.case.findUnique({ where: { id: caseId }, include: CASE_DETAIL_INCLUDE });
+  }, { timeout: 30000 });
+};
+
 /**
  * @param {string} caseId
  * @param {string} userId

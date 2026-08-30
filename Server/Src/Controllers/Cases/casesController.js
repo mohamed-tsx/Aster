@@ -7,6 +7,7 @@ import {
   updateCase,
   sendInquiry,
   respondToInquiry,
+  recordChosenResponse,
   cancelCase,
   recordFeePayment,
   recordFeePaymentByTraveler,
@@ -61,6 +62,17 @@ export const respondInquiryCtrl = asyncHandler(async (req, res) => {
     req.user.id,
   );
   return sendSuccess(res, "Hospital inquiry response recorded", inquiry);
+});
+
+export const recordChosenResponseCtrl = asyncHandler(async (req, res) => {
+  const kase = await recordChosenResponse(
+    req.params.id,
+    req.params.inquiryId,
+    req.body,
+    req.files ?? {},
+    req.user.id,
+  );
+  return sendCreated(res, "Hospital response recorded successfully", kase);
 });
 
 export const cancelCaseCtrl = asyncHandler(async (req, res) => {
