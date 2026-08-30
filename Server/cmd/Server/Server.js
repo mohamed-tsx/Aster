@@ -5,6 +5,7 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import path from "path";
 import { fileURLToPath } from "url";
+import { uploadRoot } from "../../Src/Utils/Documents/uploadRoot.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -101,12 +102,12 @@ Server.use(
   "/uploads/documents",
   Verify,
   RequirePermission("VIEW_CASES"),
-  express.static(path.join(__dirname, "../../uploads/documents/")),
+  express.static(path.join(uploadRoot(), "uploads", "documents")),
 );
 Server.use(
   "/uploads",
   Verify,
-  express.static(path.join(__dirname, "../../uploads/")),
+  express.static(path.join(uploadRoot(), "uploads")),
 ); // Serve uploaded files (requires login)
 
 // Server Routes

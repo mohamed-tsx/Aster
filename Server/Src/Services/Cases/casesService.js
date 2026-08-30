@@ -163,7 +163,7 @@ const assertAttendantRequiredFields = (data) => {
   }
 };
 
-const PATIENT_SEARCH_MIN_LENGTH = 4;
+const PATIENT_SEARCH_MIN_LENGTH = 2;
 
 // A case can only accept a NEW hospital inquiry in these statuses. Once accepted,
 // its VisaApplication(s) already exist — a second accepted inquiry would attempt to
@@ -172,27 +172,37 @@ const PATIENT_SEARCH_MIN_LENGTH = 4;
 const SENDABLE_CASE_STATUSES = ["NEW", "HOSPITAL_MATCHING", "HOSPITAL_DECLINED"];
 
 /**
- * @param {string} passportNumber
+ * Reuse-lookup for an existing patient. Matches the term against passport number,
+ * first name, last name, or phone — passport number is now optional, so a
+ * number-less patient must still be findable by name/phone.
+ * @param {string} term
  */
-export const searchPatients = async (passportNumber) => {
-  const trimmed = passportNumber?.trim();
+export const searchPatients = async (term) => {
+  const trimmed = term?.trim();
   if (!trimmed) {
     throw new AppError(
-      "passportNumber query param is required",
+      "search term query param is required",
       400,
       "VALIDATION_ERROR",
     );
   }
   if (trimmed.length < PATIENT_SEARCH_MIN_LENGTH) {
     throw new AppError(
-      `passportNumber must be at least ${PATIENT_SEARCH_MIN_LENGTH} characters`,
+      `search term must be at least ${PATIENT_SEARCH_MIN_LENGTH} characters`,
       400,
       "VALIDATION_ERROR",
     );
   }
 
   const patients = await Prisma.patient.findMany({
-    where: { passportNumber: { contains: trimmed, mode: "insensitive" } },
+    where: {
+      OR: [
+        { passportNumber: { contains: trimmed, mode: "insensitive" } },
+        { firstName: { contains: trimmed, mode: "insensitive" } },
+        { lastName: { contains: trimmed, mode: "insensitive" } },
+        { phone: { contains: trimmed } },
+      ],
+    },
     orderBy: { createdAt: "desc" },
     take: 10,
     select: { id: true, firstName: true, lastName: true, passportNumber: true },
@@ -352,7 +362,9 @@ export const createCase = async (data, files, userId) => {
   const docPlan = [
     [patientPassportFile, "PATIENT_PASSPORT"],
     [caseDocumentFile, "CASE_DOCUMENT"],
-    [attendantPassportFile, "ATTENDANT_PASSPORT"],
+    // Only keep an attendant-passport file when the case actually has an attendant
+    // — otherwise a stray upload on a no-attendant case would be stored.
+    [attendantCreateData ? attendantPassportFile : null, "ATTENDANT_PASSPORT"],
   ].filter(([file]) => file);
 
   // NOTE: `patient` below uses nested relation syntax (`connect`/`create`), which
@@ -722,6 +734,30 @@ export const cancelCase = async (caseId, userId) => {
 
 const TERMINAL_VISA_STATUSES = ["APPROVED", "REJECTED"];
 
+// A case can only have a fee payment recorded once a hospital has accepted it —
+// this keeps the visa step ordered after hospital matching for agency cases too
+// (whose visa applications are created lazily by recordFeePaymentByTraveler).
+const FEE_PAYABLE_CASE_STATUSES = ["HOSPITAL_ACCEPTED", "VISA_PROCESSING"];
+
+/**
+ * Validates the money side of a fee payment. Called by recordFeePayment and,
+ * ahead of the lazy VisaApplication create, by recordFeePaymentByTraveler — so a
+ * doomed request never persists a stray PENDING visa application.
+ * @param {{ accountId?: string, amount?: number|string }} data
+ */
+const assertFeePaymentAccountAndAmount = async ({ accountId, amount }) => {
+  if (!accountId) {
+    throw new AppError("accountId is required", 400, "VALIDATION_ERROR");
+  }
+  if (amount === undefined || amount === null || amount === "" || Number(amount) <= 0) {
+    throw new AppError("amount must be a positive number", 400, "VALIDATION_ERROR");
+  }
+  const account = await Prisma.account.findUnique({ where: { id: accountId } });
+  if (!account) {
+    throw new AppError("Account not found", 404, "NOT_FOUND");
+  }
+};
+
 /**
  * @param {string} caseId
  * @param {string} visaApplicationId
@@ -768,18 +804,8 @@ export const recordFeePayment = async (caseId, visaApplicationId, data, userId) 
     );
   }
 
+  await assertFeePaymentAccountAndAmount(data);
   const { accountId, amount, notes } = data;
-  if (!accountId) {
-    throw new AppError("accountId is required", 400, "VALIDATION_ERROR");
-  }
-  if (amount === undefined || amount === null || amount === "" || Number(amount) <= 0) {
-    throw new AppError("amount must be a positive number", 400, "VALIDATION_ERROR");
-  }
-
-  const account = await Prisma.account.findUnique({ where: { id: accountId } });
-  if (!account) {
-    throw new AppError("Account not found", 404, "NOT_FOUND");
-  }
 
   // Case.status only moves to VISA_PROCESSING on this case's *first* fee payment —
   // check before creating this one, since after this transaction there will always
@@ -887,6 +913,21 @@ export const recordFeePaymentByTraveler = async (caseId, data, userId) => {
         "VALIDATION_ERROR",
       );
     }
+    // Guard the lazy create: an agency case must have had a hospital accept it
+    // (status HOSPITAL_ACCEPTED / VISA_PROCESSING) before any visa fee — otherwise
+    // an API caller with MANAGE_FINANCE could push a NEW / HOSPITAL_MATCHING case
+    // straight to VISA_PROCESSING, skipping hospital matching. (CANCELLED is not
+    // in the list either.)
+    if (!FEE_PAYABLE_CASE_STATUSES.includes(kase.status)) {
+      throw new AppError(
+        "Fee payment can only be recorded after a hospital has accepted the case",
+        400,
+        "VALIDATION_ERROR",
+      );
+    }
+    // Validate the money side BEFORE the create, so a doomed request (bad
+    // accountId / amount) never leaves a stray PENDING visa application.
+    await assertFeePaymentAccountAndAmount(data);
     visaApplication = await Prisma.visaApplication.create({
       data: { caseId, travelerType },
     });

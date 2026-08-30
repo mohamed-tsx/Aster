@@ -33,7 +33,7 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-  await fs.rm(path.join(process.cwd(), "uploads", "documents"), {
+  await fs.rm(path.join(process.env.UPLOAD_ROOT || process.cwd(), "uploads"), {
     recursive: true,
     force: true,
   });

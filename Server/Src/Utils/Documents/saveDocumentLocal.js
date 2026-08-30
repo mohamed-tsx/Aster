@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import { uploadRoot, documentsDir } from "./uploadRoot.js";
 
 const EXTENSION_BY_MIME_TYPE = {
   "image/jpeg": "jpg",
@@ -24,7 +25,7 @@ export async function saveDocumentLocal(buffer, caseId, documentId, mimeType) {
     throw new Error(`Unsupported document mime type: ${mimeType}`);
   }
 
-  const dir = path.join(process.cwd(), "uploads", "documents", caseId);
+  const dir = path.join(documentsDir(), caseId);
   await fs.mkdir(dir, { recursive: true });
 
   const fileName = `${documentId}.${extension}`;
@@ -43,7 +44,7 @@ export async function saveDocumentLocal(buffer, caseId, documentId, mimeType) {
 export async function deleteDocumentFile(fileUrl) {
   try {
     const relativePath = fileUrl.replace(/^\/uploads\//, "");
-    const filePath = path.join(process.cwd(), "uploads", relativePath);
+    const filePath = path.join(uploadRoot(), "uploads", relativePath);
     await fs.unlink(filePath);
   } catch (_error) {
     // Ignore cleanup errors to avoid blocking deletion.

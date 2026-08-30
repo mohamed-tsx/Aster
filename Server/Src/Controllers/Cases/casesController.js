@@ -18,7 +18,7 @@ import {
 import { sendSuccess, sendCreated } from "../../Utils/Response/apiResponse.js";
 
 export const searchPatientsCtrl = asyncHandler(async (req, res) => {
-  const patients = await searchPatients(req.query.passportNumber);
+  const patients = await searchPatients(req.query.q ?? req.query.passportNumber);
   return sendSuccess(res, "Patients retrieved successfully", { patients });
 });
 

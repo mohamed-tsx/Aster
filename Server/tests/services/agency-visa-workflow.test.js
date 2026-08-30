@@ -4,6 +4,7 @@ import {
   sendInquiry,
   respondToInquiry,
   recordFeePaymentByTraveler,
+  markEmbassyVisited,
   createCase,
 } from "../../Src/Services/Cases/casesService.js";
 import {
@@ -175,5 +176,55 @@ describe("agency case: by-traveler fee payment", () => {
     );
     expect(visaApp.travelerType).toBe("ATTENDANT");
     expect(visaApp.status).toBe("FEE_PAID");
+  });
+
+  it("rejects a by-traveler payment before a hospital has accepted the case, with no stray visa app", async () => {
+    const user = await createUser();
+    const account = await createAccount();
+    const kase = await agencyIntake(user); // status still NEW — no inquiry accepted
+
+    await expect(
+      recordFeePaymentByTraveler(
+        kase.id, { travelerType: "PATIENT", accountId: account.id, amount: 100 }, user.id,
+      ),
+    ).rejects.toThrow(/after a hospital has accepted/);
+
+    const count = await Prisma.visaApplication.count({ where: { caseId: kase.id } });
+    expect(count).toBe(0);
+  });
+
+  it("does not persist a stray PENDING visa app when the payment fails money validation", async () => {
+    const user = await createUser();
+    const hospital = await createHospital();
+    const kase = await agencyIntake(user);
+    const inquiry = await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
+    await respondToInquiry(kase.id, inquiry.id, { status: "ACCEPTED" }, user.id);
+
+    await expect(
+      recordFeePaymentByTraveler(
+        kase.id, { travelerType: "PATIENT", accountId: "does-not-exist", amount: 100 }, user.id,
+      ),
+    ).rejects.toThrow();
+
+    const count = await Prisma.visaApplication.count({ where: { caseId: kase.id } });
+    expect(count).toBe(0);
+  });
+});
+
+describe("agency case: visa step ordering", () => {
+  it("rejects markEmbassyVisited while the PATIENT visa app is still PENDING (fee unpaid)", async () => {
+    const user = await createUser();
+    const hospital = await createHospital();
+    const kase = await agencyCase();
+    const inquiry = await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
+    await respondToInquiry(kase.id, inquiry.id, { status: "ACCEPTED" }, user.id);
+
+    const visaApp = await Prisma.visaApplication.create({
+      data: { caseId: kase.id, travelerType: "PATIENT" },
+    });
+
+    await expect(
+      markEmbassyVisited(kase.id, visaApp.id, { embassyVisitDate: "2026-01-01" }, user.id),
+    ).rejects.toThrow(/fee must be paid/);
   });
 });

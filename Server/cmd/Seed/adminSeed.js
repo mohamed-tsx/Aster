@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import Prisma from "../../Src/Config/Prisma/db.js";
 import { generateCustomUserId } from "../../Src/Config/Generators/ID/customUserIdGenerator.js";
+import { SETTING_DEFAULTS } from "../../Src/Services/Settings/settingsService.js";
 
 dotenv.config();
 
@@ -68,10 +69,6 @@ async function main() {
     },
   });
 
-  const SETTING_DEFAULTS = {
-    VISA_FEE_DEFAULT_DIRECT: "400",
-    VISA_FEE_DEFAULT_AGENCY: "100",
-  };
   await Promise.all(
     Object.entries(SETTING_DEFAULTS).map(([key, value]) =>
       Prisma.appSetting.upsert({ where: { key }, update: {}, create: { key, value } }),

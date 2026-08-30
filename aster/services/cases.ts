@@ -44,10 +44,10 @@ export async function getCaseById(id: string): Promise<Case> {
   return unwrap(response);
 }
 
-export async function searchPatients(passportNumber: string): Promise<PatientSummary[]> {
+export async function searchPatients(term: string): Promise<PatientSummary[]> {
   const response = await api.get<ApiSuccess<{ patients: PatientSummary[] }>>(
     "/cases/patients/search",
-    { params: { passportNumber } },
+    { params: { q: term } },
   );
   return unwrap(response).patients;
 }

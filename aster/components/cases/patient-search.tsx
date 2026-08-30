@@ -65,7 +65,7 @@ export function PatientSearch({ selectedPatient, onSelect }: PatientSearchProps)
         <p className="text-sm font-medium">Returning patient?</p>
         <div className="flex gap-2">
           <Input
-            placeholder="Search by passport number"
+            placeholder="Search by name, phone, or passport number"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {

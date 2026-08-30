@@ -157,4 +157,33 @@ describe("searchPatients — hasPassportOnFile", () => {
     const [row] = await searchPatients("NOPASSPORT9");
     expect(row.hasPassportOnFile).toBe(false);
   });
+
+  it("finds a patient by a fragment of their last name", async () => {
+    await createPatient({ firstName: "Aaliyah", lastName: "Mohammednur", passportNumber: "LN-1" });
+    const rows = await searchPatients("hammednu");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].lastName).toBe("Mohammednur");
+  });
+
+  it("finds a patient by a fragment of their phone number", async () => {
+    await createPatient({ firstName: "Bilal", lastName: "Osman", phone: "0788123456", passportNumber: "PH-1" });
+    const rows = await searchPatients("788123");
+    expect(rows.some((r) => r.firstName === "Bilal")).toBe(true);
+  });
+
+  it("finds a number-less patient by name, with hasPassportOnFile from their documents", async () => {
+    const user = await createUser();
+    const patient = await createPatient({
+      firstName: "Nuria",
+      lastName: "Kediro",
+      passportNumber: null,
+    });
+    const kase = await createCaseRow({ patientId: patient.id });
+    await attachDocument({ caseId: kase.id, type: "PATIENT_PASSPORT", uploadedById: user.id });
+
+    const [row] = await searchPatients("Kediro");
+    expect(row.id).toBe(patient.id);
+    expect(row.passportNumber).toBeNull();
+    expect(row.hasPassportOnFile).toBe(true);
+  });
 });

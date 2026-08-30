@@ -1,4 +1,5 @@
 import multer from "multer";
+import { AppError } from "../../Utils/ErrorHandler/errorHandler.js";
 
 const storage = multer.memoryStorage();
 
@@ -17,6 +18,16 @@ export const uploadDocument = multer({
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
   fileFilter: (_req, file, cb) => {
     const ok = ALLOWED_MIME_TYPES.has(file.mimetype);
-    cb(ok ? null : new Error("Only JPG/PNG/WEBP/PDF/DOC/DOCX files are allowed"), ok);
+    if (!ok) {
+      cb(
+        new AppError(
+          "Only JPG, PNG, WEBP, PDF, DOC, and DOCX files are allowed",
+          400,
+          "VALIDATION_ERROR",
+        ),
+      );
+      return;
+    }
+    cb(null, true);
   },
 });

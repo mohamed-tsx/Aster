@@ -183,7 +183,7 @@ export function VisaApplicationPanel({ kase, onChanged }: VisaApplicationPanelPr
             {kase.status !== "CANCELLED" &&
               visaApplication.status === "PENDING" &&
               hasPermission("MANAGE_FINANCE") &&
-              (visaApplication.travelerType === "PATIENT" && attendantPassportMissing ? (
+              (attendantPassportMissing ? (
                 <div className="mt-2 space-y-2">
                   <Button size="sm" disabled>
                     Record fee payment
@@ -191,13 +191,15 @@ export function VisaApplicationPanel({ kase, onChanged }: VisaApplicationPanelPr
                   <p className="text-xs text-muted-foreground">
                     Upload the attendant&apos;s passport before recording the visa fee.
                   </p>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setAttendantPassportUploadOpen(true)}
-                  >
-                    Upload attendant passport
-                  </Button>
+                  {hasPermission("UPDATE_CASES") && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setAttendantPassportUploadOpen(true)}
+                    >
+                      Upload attendant passport
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <Button
