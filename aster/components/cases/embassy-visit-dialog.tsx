@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import {
@@ -21,22 +21,62 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { embassyVisitSchema, type EmbassyVisitFormValues } from "@/lib/validations/case";
+import { listAccounts } from "@/services/accounts";
+import { getSettings } from "@/services/settings";
+import type { Account } from "@/types/account";
 
 type EmbassyVisitDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (values: { embassyVisitDate: string; notes?: string }) => Promise<void>;
+  onSubmit: (values: {
+    embassyVisitDate: string;
+    notes?: string;
+    partnerCommission?: { amount: string; accountId: string };
+  }) => Promise<void>;
 };
 
 export function EmbassyVisitDialog({ open, onOpenChange, onSubmit }: EmbassyVisitDialogProps) {
+  const [defaultCommission, setDefaultCommission] = useState("0");
   const form = useForm<EmbassyVisitFormValues>({
-    defaultValues: { embassyVisitDate: "", notes: "" },
+    defaultValues: {
+      embassyVisitDate: "",
+      notes: "",
+      partnerCommissionAmount: defaultCommission,
+      partnerCommissionAccountId: "",
+    },
   });
+  const [accounts, setAccounts] = useState<Account[]>([]);
 
   useEffect(() => {
-    if (open) form.reset({ embassyVisitDate: "", notes: "" });
-  }, [open, form]);
+    getSettings()
+      .then((s) => setDefaultCommission(s.EMBASSY_COMMISSION_DEFAULT ?? "0"))
+      .catch(() => {});
+  }, []);
+
+  // `defaultCommission` is a dep so a settings fetch that resolves after the dialog
+  // is already open still prefills the amount (mirrors fee-payment-dialog).
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        embassyVisitDate: "",
+        notes: "",
+        partnerCommissionAmount: defaultCommission,
+        partnerCommissionAccountId: "",
+      });
+      listAccounts()
+        .then(setAccounts)
+        .catch(() => setAccounts([]));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, defaultCommission]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -56,7 +96,21 @@ export function EmbassyVisitDialog({ open, onOpenChange, onSubmit }: EmbassyVisi
                 }
                 return;
               }
-              await onSubmit(parsed.data);
+              const amt = parsed.data.partnerCommissionAmount;
+              if (amt && Number(amt) > 0 && !parsed.data.partnerCommissionAccountId) {
+                form.setError("partnerCommissionAccountId", {
+                  message: "Select an account for the commission",
+                });
+                return;
+              }
+              await onSubmit({
+                embassyVisitDate: parsed.data.embassyVisitDate,
+                notes: parsed.data.notes?.trim() || undefined,
+                partnerCommission:
+                  amt && Number(amt) > 0
+                    ? { amount: amt, accountId: parsed.data.partnerCommissionAccountId ?? "" }
+                    : undefined,
+              });
             })}
             className="space-y-4"
           >
@@ -86,6 +140,46 @@ export function EmbassyVisitDialog({ open, onOpenChange, onSubmit }: EmbassyVisi
                 </FormItem>
               )}
             />
+            <div className="space-y-4 rounded-md border p-3">
+              <p className="text-sm font-medium">Partner commission (optional)</p>
+              <FormField
+                control={form.control}
+                name="partnerCommissionAmount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Amount (USD)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="partnerCommissionAccountId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Account</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select account" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {accounts.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel

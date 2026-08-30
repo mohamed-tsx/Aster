@@ -101,7 +101,11 @@ export function VisaApplicationPanel({ kase, onChanged }: VisaApplicationPanelPr
     }
   };
 
-  const handleEmbassyVisit = async (values: { embassyVisitDate: string; notes?: string }) => {
+  const handleEmbassyVisit = async (values: {
+    embassyVisitDate: string;
+    notes?: string;
+    partnerCommission?: { amount: string; accountId: string };
+  }) => {
     if (!embassyVisitTarget) return;
     try {
       await markEmbassyVisited(kase.id, embassyVisitTarget.id, values);

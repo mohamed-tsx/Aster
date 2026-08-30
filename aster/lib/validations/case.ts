@@ -223,6 +223,8 @@ export type FeePaymentFormValues = z.infer<typeof feePaymentSchema>;
 export const embassyVisitSchema = z.object({
   embassyVisitDate: z.string().min(1, "Embassy visit date is required"),
   notes: z.string().max(1000).optional(),
+  partnerCommissionAmount: z.string().optional(),
+  partnerCommissionAccountId: z.string().optional(),
 });
 
 export type EmbassyVisitFormValues = z.infer<typeof embassyVisitSchema>;
