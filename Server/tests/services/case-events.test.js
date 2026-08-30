@@ -14,6 +14,7 @@ import {
   createAccount,
   createPatient,
   createHospital,
+  caseIntakeFiles,
 } from "../helpers/factories.js";
 
 const eventsFor = (caseId) =>
@@ -26,6 +27,7 @@ describe("case status-change event logging", () => {
 
     const kase = await createCase(
       { patientId: patient.id, reachOutType: "DIRECT" },
+      caseIntakeFiles(),
       user.id,
     );
 
@@ -40,7 +42,7 @@ describe("case status-change event logging", () => {
     const user = await createUser();
     const patient = await createPatient();
     const hospital = await createHospital();
-    const kase = await createCase({ patientId: patient.id, reachOutType: "DIRECT" }, user.id);
+    const kase = await createCase({ patientId: patient.id, reachOutType: "DIRECT" }, caseIntakeFiles(), user.id);
 
     await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
 
@@ -55,7 +57,7 @@ describe("case status-change event logging", () => {
     const user = await createUser();
     const patient = await createPatient();
     const hospital = await createHospital();
-    const kase = await createCase({ patientId: patient.id, reachOutType: "DIRECT" }, user.id);
+    const kase = await createCase({ patientId: patient.id, reachOutType: "DIRECT" }, caseIntakeFiles(), user.id);
     const inquiry = await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
 
     await respondToInquiry(kase.id, inquiry.id, { status: "ACCEPTED" }, user.id);
@@ -75,7 +77,7 @@ describe("case status-change event logging", () => {
   it("logs a CASE_STATUS_CHANGED event on cancellation", async () => {
     const user = await createUser();
     const patient = await createPatient();
-    const kase = await createCase({ patientId: patient.id, reachOutType: "DIRECT" }, user.id);
+    const kase = await createCase({ patientId: patient.id, reachOutType: "DIRECT" }, caseIntakeFiles(), user.id);
 
     await cancelCase(kase.id, user.id);
 
@@ -91,7 +93,7 @@ describe("case status-change event logging", () => {
     const account = await createAccount();
     const patient = await createPatient();
     const hospital = await createHospital();
-    const kase = await createCase({ patientId: patient.id, reachOutType: "DIRECT" }, user.id);
+    const kase = await createCase({ patientId: patient.id, reachOutType: "DIRECT" }, caseIntakeFiles(), user.id);
     const inquiry = await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
     await respondToInquiry(kase.id, inquiry.id, { status: "ACCEPTED" }, user.id);
     const visaApplication = await Prisma.visaApplication.findFirstOrThrow({ where: { caseId: kase.id } });
@@ -115,7 +117,7 @@ describe("case status-change event logging", () => {
     const account = await createAccount();
     const patient = await createPatient();
     const hospital = await createHospital();
-    const kase = await createCase({ patientId: patient.id, reachOutType: "DIRECT" }, user.id);
+    const kase = await createCase({ patientId: patient.id, reachOutType: "DIRECT" }, caseIntakeFiles(), user.id);
     const inquiry = await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
     await respondToInquiry(kase.id, inquiry.id, { status: "ACCEPTED" }, user.id);
     const visaApplication = await Prisma.visaApplication.findFirstOrThrow({ where: { caseId: kase.id } });

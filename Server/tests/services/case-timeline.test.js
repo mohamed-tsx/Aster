@@ -9,6 +9,7 @@ import {
   createPatient,
   createVisaApplication,
   createPayment,
+  caseIntakeFiles,
 } from "../helpers/factories.js";
 
 describe("getCaseTimeline", () => {
@@ -18,7 +19,7 @@ describe("getCaseTimeline", () => {
     const patient = await createPatient();
     // Goes through the real service (not the raw-Prisma factory) so it logs
     // a CASE_CREATED event, exercising the timeline's CaseEvent merge too.
-    const kase = await createCase({ patientId: patient.id, reachOutType: "DIRECT" }, user.id);
+    const kase = await createCase({ patientId: patient.id, reachOutType: "DIRECT" }, caseIntakeFiles(), user.id);
     const visaApplication = await createVisaApplication({ caseId: kase.id });
     await createPayment({
       visaApplicationId: visaApplication.id,

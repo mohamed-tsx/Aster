@@ -38,7 +38,7 @@ export const getCaseCtrl = asyncHandler(async (req, res) => {
 });
 
 export const createCaseCtrl = asyncHandler(async (req, res) => {
-  const kase = await createCase(req.body, req.user.id);
+  const kase = await createCase(req.body, req.files ?? {}, req.user.id);
   return sendCreated(res, "Case created successfully", kase);
 });
 

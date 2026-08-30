@@ -6,6 +6,7 @@ import { saveDocumentLocal, deleteDocumentFile } from "../../Utils/Documents/sav
 const DOCUMENT_TYPES = [
   "PATIENT_PASSPORT",
   "ATTENDANT_PASSPORT",
+  "CASE_DOCUMENT",
   "INVITATION_LETTER",
   "VISA_COPY",
   "OTHER",

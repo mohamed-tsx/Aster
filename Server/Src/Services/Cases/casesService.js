@@ -1,6 +1,8 @@
+import crypto from "crypto";
 import Prisma from "../../Config/Prisma/db.js";
 import { AppError } from "../../Utils/ErrorHandler/errorHandler.js";
 import { generateCaseNumber } from "../../Config/Generators/ID/customCaseIdGenerator.js";
+import { saveDocumentLocal } from "../../Utils/Documents/saveDocumentLocal.js";
 
 /**
  * Agency-sourced cases don't get their VisaApplication rows auto-created on
@@ -84,14 +86,16 @@ const PATIENT_FIELDS = [
   "address",
 ];
 
+// passportNumber / passportExpiry are intentionally absent: the passport is now
+// captured as an uploaded PATIENT_PASSPORT document at case registration, and both
+// columns are nullable in the schema. They stay in PATIENT_FIELDS so a client may
+// still supply them, but they are no longer mandatory on the typed form.
 const PATIENT_REQUIRED_FIELDS = [
   "firstName",
   "lastName",
   "gender",
   "dateOfBirth",
   "nationality",
-  "passportNumber",
-  "passportExpiry",
   "phone",
 ];
 
@@ -187,14 +191,25 @@ export const searchPatients = async (passportNumber) => {
     );
   }
 
-  return Prisma.patient.findMany({
-    where: {
-      passportNumber: { contains: trimmed, mode: "insensitive" },
-    },
+  const patients = await Prisma.patient.findMany({
+    where: { passportNumber: { contains: trimmed, mode: "insensitive" } },
     orderBy: { createdAt: "desc" },
     take: 10,
     select: { id: true, firstName: true, lastName: true, passportNumber: true },
   });
+
+  if (patients.length === 0) return [];
+
+  const passportDocs = await Prisma.document.findMany({
+    where: {
+      type: "PATIENT_PASSPORT",
+      case: { patientId: { in: patients.map((p) => p.id) } },
+    },
+    select: { case: { select: { patientId: true } } },
+  });
+  const withPassport = new Set(passportDocs.map((d) => d.case.patientId));
+
+  return patients.map((p) => ({ ...p, hasPassportOnFile: withPassport.has(p.id) }));
 };
 
 /**
@@ -258,9 +273,11 @@ export const getCaseById = async (caseId) => {
 /**
  * @param {Object} data - patientId (reuse) OR flat patient* fields (new patient),
  *   optional flat attendant* fields, reachOutType, agencyId, assignedToId, notes
+ * @param {{ patientPassport?: object[], caseDocument?: object[], attendantPassport?: object[] }} files -
+ *   the Multer `.fields()` object; each value is `[{ buffer, mimetype, originalname }]`. Pass `{}` for none.
  * @param {string} userId
  */
-export const createCase = async (data, userId) => {
+export const createCase = async (data, files, userId) => {
   const { patientId, reachOutType, agencyId, assignedToId, notes } = data;
 
   if (!reachOutType || !["DIRECT", "AGENCY"].includes(reachOutType)) {
@@ -299,36 +316,90 @@ export const createCase = async (data, userId) => {
     }
   }
 
+  // Multer passes every multipart field through as a string, so `hasAttendant`
+  // arrives as "false"/"true" over HTTP — both truthy. Coerce to a real boolean
+  // before the guard so an attendant-less case isn't forced through attendant
+  // creation/validation.
+  const hasAttendant = data.hasAttendant === true || data.hasAttendant === "true";
+
   let attendantCreateData = null;
-  if (data.hasAttendant) {
+  if (hasAttendant) {
     attendantCreateData = pickAttendantFields(data);
     assertAttendantRequiredFields(attendantCreateData);
   }
 
+  // --- Document requirements (before any write) ---
+  let patientPassportRequired = true;
+  if (patientId) {
+    const priorPassport = await Prisma.document.findFirst({
+      where: { case: { patientId }, type: "PATIENT_PASSPORT" },
+    });
+    if (priorPassport) patientPassportRequired = false;
+  }
+  const patientPassportFile = files?.patientPassport?.[0] ?? null;
+  const caseDocumentFile = files?.caseDocument?.[0] ?? null;
+  const attendantPassportFile = files?.attendantPassport?.[0] ?? null;
+
+  if (patientPassportRequired && !patientPassportFile) {
+    throw new AppError("Patient passport is required", 400, "VALIDATION_ERROR");
+  }
+  if (!caseDocumentFile) {
+    throw new AppError("Case document is required", 400, "VALIDATION_ERROR");
+  }
+
   const caseNumber = await generateCaseNumber();
+
+  const docPlan = [
+    [patientPassportFile, "PATIENT_PASSPORT"],
+    [caseDocumentFile, "CASE_DOCUMENT"],
+    [attendantPassportFile, "ATTENDANT_PASSPORT"],
+  ].filter(([file]) => file);
 
   // NOTE: `patient` below uses nested relation syntax (`connect`/`create`), which
   // forces Prisma's "checked" create-input shape for this call — that shape does not
   // accept raw scalar FK fields (`agencyId`/`assignedToId`) alongside it, only nested
   // `agency`/`assignedTo` relation objects. Using `connect` here keeps the same
   // semantics as plain scalar assignment while satisfying Prisma's input validation.
-  return Prisma.case.create({
-    data: {
-      caseNumber,
-      reachOutType,
-      notes: notes || null,
-      patient: patientId
-        ? { connect: { id: patientId } }
-        : { create: patientCreateData },
-      ...(reachOutType === "AGENCY" && agencyId
-        ? { agency: { connect: { id: agencyId } } }
-        : {}),
-      ...(assignedToId ? { assignedTo: { connect: { id: assignedToId } } } : {}),
-      ...(attendantCreateData ? { attendant: { create: attendantCreateData } } : {}),
-      events: { create: { type: "CASE_CREATED", toStatus: "NEW", actorId: userId ?? null } },
-    },
-    include: CASE_DETAIL_INCLUDE,
-  });
+  //
+  // The case row and its Document rows are written in one transaction: a failed
+  // document write (e.g. an unsupported mime type) rolls the whole case back.
+  // `timeout` is raised well above Prisma's 5s default because `saveDocumentLocal`
+  // does disk I/O inside the transaction and each upload can be up to 50MB.
+  return Prisma.$transaction(async (tx) => {
+    const created = await tx.case.create({
+      data: {
+        caseNumber,
+        reachOutType,
+        notes: notes || null,
+        patient: patientId
+          ? { connect: { id: patientId } }
+          : { create: patientCreateData },
+        ...(reachOutType === "AGENCY" && agencyId
+          ? { agency: { connect: { id: agencyId } } }
+          : {}),
+        ...(assignedToId ? { assignedTo: { connect: { id: assignedToId } } } : {}),
+        ...(attendantCreateData ? { attendant: { create: attendantCreateData } } : {}),
+        events: { create: { type: "CASE_CREATED", toStatus: "NEW", actorId: userId ?? null } },
+      },
+    });
+
+    for (const [file, type] of docPlan) {
+      const documentId = crypto.randomUUID();
+      const fileUrl = await saveDocumentLocal(file.buffer, created.id, documentId, file.mimetype);
+      await tx.document.create({
+        data: {
+          id: documentId,
+          caseId: created.id,
+          type,
+          fileName: file.originalname,
+          fileUrl,
+          uploadedById: userId,
+        },
+      });
+    }
+
+    return tx.case.findUnique({ where: { id: created.id }, include: CASE_DETAIL_INCLUDE });
+  }, { timeout: 30000 });
 };
 
 /**

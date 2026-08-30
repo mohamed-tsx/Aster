@@ -14,6 +14,7 @@ import {
   issueRefundCtrl,
   getCaseTimelineCtrl,
 } from "../../Controllers/Cases/casesController.js";
+import { uploadDocument } from "../../Middlewares/Multer/uploadDocument.js";
 import Verify from "../../Middlewares/Auth/Verify.js";
 import RequirePermission from "../../Middlewares/Auth/RequirePermission.js";
 import RequireAnyPermission from "../../Middlewares/Auth/RequireAnyPermission.js";
@@ -32,7 +33,16 @@ router.get(
 router.get("/", RequirePermission("VIEW_CASES"), listCasesCtrl);
 router.get("/:id", RequirePermission("VIEW_CASES"), getCaseCtrl);
 router.get("/:id/timeline", RequirePermission("VIEW_CASES"), getCaseTimelineCtrl);
-router.post("/", RequirePermission("CREATE_CASES"), createCaseCtrl);
+router.post(
+  "/",
+  RequirePermission("CREATE_CASES"),
+  uploadDocument.fields([
+    { name: "patientPassport", maxCount: 1 },
+    { name: "caseDocument", maxCount: 1 },
+    { name: "attendantPassport", maxCount: 1 },
+  ]),
+  createCaseCtrl,
+);
 router.put("/:id", RequirePermission("UPDATE_CASES"), updateCaseCtrl);
 router.patch("/:id/cancel", RequirePermission("UPDATE_CASES"), cancelCaseCtrl);
 router.post("/:id/inquiries", RequirePermission("UPDATE_CASES"), sendInquiryCtrl);
