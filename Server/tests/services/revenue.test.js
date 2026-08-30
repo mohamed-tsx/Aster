@@ -40,6 +40,16 @@ describe("createRevenue", () => {
     await expect(createRevenue(base({ accountId: "nope" }), user.id)).rejects.toThrow("Account not found");
     await expect(createRevenue(base({ accountId: account.id, caseId: "nope" }), user.id)).rejects.toThrow("Case not found");
   });
+
+  it("rejects a non-numeric amount with a 400 rather than a Prisma 500", async () => {
+    const user = await createUser();
+    const account = await createAccount();
+    await expect(createRevenue(base({ amount: "abc", accountId: account.id }), user.id)).rejects.toMatchObject({
+      statusCode: 400,
+      errorCode: "VALIDATION_ERROR",
+      message: "amount must be a positive number",
+    });
+  });
 });
 
 describe("listRevenue", () => {

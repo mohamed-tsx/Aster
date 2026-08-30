@@ -50,4 +50,30 @@ describe("markEmbassyVisited — partner commission", () => {
       markEmbassyVisited(kase.id, visaId, { embassyVisitDate: "2026-04-01", partnerCommission: { amount: 40 } }, user.id),
     ).rejects.toThrow(/account/i);
   });
+
+  it("treats a zero commission as no commission", async () => {
+    const user = await createUser();
+    const account = await createAccount();
+    const { kase, visaId } = await readyForEmbassy(user, account);
+    const updated = await markEmbassyVisited(
+      kase.id, visaId,
+      { embassyVisitDate: "2026-04-01", partnerCommission: { amount: "0" } },
+      user.id,
+    );
+    expect(updated.status).toBe("EMBASSY_VISITED");
+    expect(await Prisma.expense.findFirst({ where: { visaApplicationId: visaId } })).toBeNull();
+  });
+
+  it("rejects a non-numeric commission amount with a 400 rather than skipping it", async () => {
+    const user = await createUser();
+    const account = await createAccount();
+    const { kase, visaId } = await readyForEmbassy(user, account);
+    await expect(
+      markEmbassyVisited(
+        kase.id, visaId,
+        { embassyVisitDate: "2026-04-01", partnerCommission: { amount: "abc", accountId: account.id } },
+        user.id,
+      ),
+    ).rejects.toMatchObject({ statusCode: 400, errorCode: "VALIDATION_ERROR" });
+  });
 });

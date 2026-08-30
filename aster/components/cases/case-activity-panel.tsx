@@ -4,10 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ArrowRightLeft,
   Banknote,
+  Building2,
   Loader2,
   MessageSquare,
   Plus,
   Receipt,
+  Repeat,
   Send,
   Undo2,
   Upload,
@@ -55,6 +57,14 @@ function describe(item: CaseTimelineItem): string {
       if (item.subtype === "CASE_CREATED") return "Case created";
       if (item.subtype === "INQUIRY_STATUS_CHANGED")
         return `Hospital inquiry ${item.toStatus?.toLowerCase()}`;
+      // These two carry fromStatus: null / toStatus: "ACCEPTED", which reads as
+      // "Status changed: — → ACCEPTED" if they fall through to the generic branch.
+      if (item.subtype === "HOSPITAL_CHOSEN")
+        return item.hospitalName ? `Hospital chosen: ${item.hospitalName}` : "Hospital chosen";
+      if (item.subtype === "HOSPITAL_CHANGED")
+        return item.hospitalName
+          ? `Chosen hospital changed to ${item.hospitalName}`
+          : "Chosen hospital changed";
       return `Status changed: ${item.fromStatus?.replace(/_/g, " ") ?? "—"} → ${item.toStatus?.replace(/_/g, " ")}`;
     case "NOTE":
       return item.body ?? "";
@@ -74,7 +84,10 @@ function describe(item: CaseTimelineItem): string {
 function iconFor(item: CaseTimelineItem): LucideIcon {
   switch (item.type) {
     case "CASE_STATUS_EVENT":
-      return item.subtype === "CASE_CREATED" ? Plus : ArrowRightLeft;
+      if (item.subtype === "CASE_CREATED") return Plus;
+      if (item.subtype === "HOSPITAL_CHOSEN") return Building2;
+      if (item.subtype === "HOSPITAL_CHANGED") return Repeat;
+      return ArrowRightLeft;
     case "NOTE":
       return MessageSquare;
     case "PAYMENT_RECEIVED":

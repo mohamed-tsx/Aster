@@ -26,9 +26,25 @@ export const TYPE_LABEL: Record<AccountTransactionType, string> = {
   PAYMENT_RECEIVED: "Payment received",
   EXPENSE_PAID: "Expense paid",
   REFUND_ISSUED: "Refund issued",
+  REVENUE_RECEIVED: "Revenue received",
+  LOAN_RECEIVED: "Loan received",
+  LOAN_REPAYMENT: "Loan repayment",
+  PAYABLE_SETTLED: "Payable settled",
 };
 
-export const CREDIT_TYPES = new Set<AccountTransactionType>(["OPENING_BALANCE", "PAYMENT_RECEIVED"]);
+/** Types that move money *into* the account. Everything else renders as a debit. */
+export const CREDIT_TYPES = new Set<AccountTransactionType>([
+  "OPENING_BALANCE",
+  "PAYMENT_RECEIVED",
+  "REVENUE_RECEIVED",
+  "LOAN_RECEIVED",
+]);
+
+/** "HOSPITAL_REFERRAL_COMMISSION" -> "Hospital referral commission" */
+function humanize(value: string) {
+  const spaced = value.replace(/_/g, " ").toLowerCase();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
 
 export function describe(transaction: AccountTransaction): { text: string; caseId: string | null } {
   if (transaction.payment) {
@@ -45,6 +61,26 @@ export function describe(transaction: AccountTransaction): { text: string; caseI
   if (transaction.refund) {
     const kase = transaction.refund.payment.visaApplication.case;
     return { text: `${transaction.refund.reason} · Case ${kase.caseNumber}`, caseId: kase.id };
+  }
+  if (transaction.revenue) {
+    const kase = transaction.revenue.case;
+    const category = humanize(transaction.revenue.category);
+    return {
+      text: kase ? `Revenue: ${category} · Case ${kase.caseNumber}` : `Revenue: ${category}`,
+      caseId: kase?.id ?? null,
+    };
+  }
+  if (transaction.loan) {
+    return { text: `Loan from ${transaction.loan.lenderName}`, caseId: null };
+  }
+  if (transaction.loanRepayment) {
+    return { text: `Repayment to ${transaction.loanRepayment.loan.lenderName}`, caseId: null };
+  }
+  if (transaction.payable) {
+    return {
+      text: `Settled payable to ${transaction.payable.payeeName} · ${transaction.payable.reason}`,
+      caseId: null,
+    };
   }
   return { text: transaction.notes || "—", caseId: null };
 }

@@ -25,6 +25,13 @@ const financeDefaultsSchema = z.object({
   VISA_FEE_DEFAULT_AGENCY: z
     .string()
     .refine((v) => Number.isFinite(Number(v)) && Number(v) > 0, "Must be a positive number"),
+  // Zero is a valid embassy commission — it means "no partnership".
+  EMBASSY_COMMISSION_DEFAULT: z
+    .string()
+    .refine(
+      (v) => v.trim() !== "" && Number.isFinite(Number(v)) && Number(v) >= 0,
+      "Must be zero or a positive number",
+    ),
 });
 
 type FinanceDefaultsValues = z.infer<typeof financeDefaultsSchema>;
@@ -33,7 +40,11 @@ export function FinanceDefaultsForm() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const form = useForm<FinanceDefaultsValues>({
-    defaultValues: { VISA_FEE_DEFAULT_DIRECT: "", VISA_FEE_DEFAULT_AGENCY: "" },
+    defaultValues: {
+      VISA_FEE_DEFAULT_DIRECT: "",
+      VISA_FEE_DEFAULT_AGENCY: "",
+      EMBASSY_COMMISSION_DEFAULT: "",
+    },
   });
 
   useEffect(() => {
@@ -44,6 +55,7 @@ export function FinanceDefaultsForm() {
         form.reset({
           VISA_FEE_DEFAULT_DIRECT: settings.VISA_FEE_DEFAULT_DIRECT ?? "",
           VISA_FEE_DEFAULT_AGENCY: settings.VISA_FEE_DEFAULT_AGENCY ?? "",
+          EMBASSY_COMMISSION_DEFAULT: settings.EMBASSY_COMMISSION_DEFAULT ?? "",
         });
       })
       .catch((error) => {
@@ -83,6 +95,7 @@ export function FinanceDefaultsForm() {
                 form.reset({
                   VISA_FEE_DEFAULT_DIRECT: updated.VISA_FEE_DEFAULT_DIRECT ?? "",
                   VISA_FEE_DEFAULT_AGENCY: updated.VISA_FEE_DEFAULT_AGENCY ?? "",
+                  EMBASSY_COMMISSION_DEFAULT: updated.EMBASSY_COMMISSION_DEFAULT ?? "",
                 });
                 toast.success("Finance defaults updated");
               } catch (error) {
@@ -112,6 +125,19 @@ export function FinanceDefaultsForm() {
                   <FormLabel>Default visa fee — Agency cases (USD)</FormLabel>
                   <FormControl>
                     <Input type="number" min="1" step="1" disabled={disabled} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="EMBASSY_COMMISSION_DEFAULT"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Embassy partnership commission (default, USD)</FormLabel>
+                  <FormControl>
+                    <Input type="number" min="0" step="1" disabled={disabled} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

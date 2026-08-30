@@ -163,4 +163,45 @@ describe("changeChosenHospital", () => {
       changeChosenHospital(kase.id, i2.id, { treatmentCostEstimate: 2, currency: "USD" }, chosenResponseFiles(), user.id),
     ).rejects.toThrow(/cannot be changed after a visa fee has been paid/i);
   });
+
+  it("leaves the target inquiry's existing note intact when no notes field is supplied", async () => {
+    const user = await createUser();
+    const kase = await createCase();
+    const h1 = await createHospital();
+    const h2 = await createHospital();
+    const i1 = await sendInquiry(kase.id, { hospitalId: h1.id }, user.id);
+    const i2 = await sendInquiry(kase.id, { hospitalId: h2.id, notes: "keep me" }, user.id);
+    await recordChosenResponse(kase.id, i1.id, { treatmentCostEstimate: 1, currency: "USD" }, chosenResponseFiles(), user.id);
+
+    await changeChosenHospital(kase.id, i2.id, { treatmentCostEstimate: 2, currency: "USD" }, chosenResponseFiles(), user.id);
+
+    const target = await Prisma.hospitalInquiry.findUnique({ where: { id: i2.id } });
+    expect(target.notes).toBe("keep me");
+  });
+
+  it("rejects a non-numeric treatment cost estimate with a 400 rather than a Prisma 500", async () => {
+    const user = await createUser();
+    const kase = await createCase();
+    const h1 = await createHospital();
+    const h2 = await createHospital();
+    const i1 = await sendInquiry(kase.id, { hospitalId: h1.id }, user.id);
+    const i2 = await sendInquiry(kase.id, { hospitalId: h2.id }, user.id);
+    await recordChosenResponse(kase.id, i1.id, { treatmentCostEstimate: 1, currency: "USD" }, chosenResponseFiles(), user.id);
+
+    await expect(
+      changeChosenHospital(kase.id, i2.id, { treatmentCostEstimate: "abc", currency: "USD" }, chosenResponseFiles(), user.id),
+    ).rejects.toMatchObject({ statusCode: 400, errorCode: "VALIDATION_ERROR" });
+  });
+});
+
+describe("recordChosenResponse — non-numeric amount guard", () => {
+  it("rejects a non-numeric treatment cost estimate with a 400 rather than a Prisma 500", async () => {
+    const user = await createUser();
+    const kase = await createCase();
+    const h = await createHospital();
+    const i = await sendInquiry(kase.id, { hospitalId: h.id }, user.id);
+    await expect(
+      recordChosenResponse(kase.id, i.id, { treatmentCostEstimate: "abc", currency: "USD" }, chosenResponseFiles(), user.id),
+    ).rejects.toMatchObject({ statusCode: 400, errorCode: "VALIDATION_ERROR" });
+  });
 });

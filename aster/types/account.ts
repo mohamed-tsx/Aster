@@ -1,3 +1,5 @@
+import type { RevenueCategory } from "@/types/revenue";
+
 export type AccountType = "BANK" | "CASH" | "OTHER";
 
 export type AccountBalances = Record<string, number>;
@@ -17,7 +19,11 @@ export type AccountTransactionType =
   | "OPENING_BALANCE"
   | "PAYMENT_RECEIVED"
   | "EXPENSE_PAID"
-  | "REFUND_ISSUED";
+  | "REFUND_ISSUED"
+  | "REVENUE_RECEIVED"
+  | "LOAN_RECEIVED"
+  | "LOAN_REPAYMENT"
+  | "PAYABLE_SETTLED";
 
 export type AccountTransaction = {
   id: string;
@@ -41,6 +47,14 @@ export type AccountTransaction = {
     reason: string;
     payment: { visaApplication: { case: { id: string; caseNumber: string } } };
   } | null;
+  revenue: {
+    id: string;
+    category: RevenueCategory;
+    case: { id: string; caseNumber: string } | null;
+  } | null;
+  loan: { id: string; lenderName: string } | null;
+  loanRepayment: { id: string; loan: { id: string; lenderName: string } } | null;
+  payable: { id: string; payeeName: string; reason: string } | null;
   /** Only present on the cross-account "all transactions" listing. */
   account?: { id: string; name: string };
 };

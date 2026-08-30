@@ -1,5 +1,9 @@
 import Prisma from "../../Config/Prisma/db.js";
 import { AppError } from "../../Utils/ErrorHandler/errorHandler.js";
+import {
+  assertNonNegativeAmount,
+  assertPositiveAmount,
+} from "../../Utils/Validation/assertAmount.js";
 import { loanProjection } from "./loanProjection.js";
 
 const CURRENCIES = ["USD", "INR"];
@@ -21,13 +25,9 @@ export const createLoan = async (data, userId) => {
   const { lenderName, principal, currency, interestRatePct, interestMethod, disbursedOn, termMonths, notes, accountId } = data;
 
   if (!lenderName?.trim()) throw new AppError("lenderName is required", 400, "VALIDATION_ERROR");
-  if (principal === undefined || principal === null || principal === "" || Number(principal) <= 0) {
-    throw new AppError("principal must be a positive number", 400, "VALIDATION_ERROR");
-  }
+  assertPositiveAmount(principal, "principal must be a positive number");
   if (!CURRENCIES.includes(currency)) throw new AppError(`currency must be one of: ${CURRENCIES.join(", ")}`, 400, "VALIDATION_ERROR");
-  if (interestRatePct === undefined || interestRatePct === null || interestRatePct === "" || Number(interestRatePct) < 0) {
-    throw new AppError("interestRatePct must be zero or a positive number", 400, "VALIDATION_ERROR");
-  }
+  assertNonNegativeAmount(interestRatePct, "interestRatePct must be zero or a positive number");
   if (!METHODS.includes(interestMethod)) throw new AppError(`interestMethod must be one of: ${METHODS.join(", ")}`, 400, "VALIDATION_ERROR");
   if (!Number.isInteger(Number(termMonths)) || Number(termMonths) <= 0) {
     throw new AppError("termMonths must be a positive whole number", 400, "VALIDATION_ERROR");
@@ -74,9 +74,7 @@ export const recordLoanRepayment = async (loanId, data, userId) => {
   const loan = await Prisma.loan.findUnique({ where: { id: loanId }, include: { repayments: true } });
   if (!loan) throw new AppError("Loan not found", 404, "NOT_FOUND");
   if (loan.status === "SETTLED") throw new AppError("This loan is already settled", 400, "VALIDATION_ERROR");
-  if (amount === undefined || amount === null || amount === "" || Number(amount) <= 0) {
-    throw new AppError("amount must be a positive number", 400, "VALIDATION_ERROR");
-  }
+  assertPositiveAmount(amount, "amount must be a positive number");
   const paid = new Date(paidOn);
   if (Number.isNaN(paid.getTime())) throw new AppError("paidOn is not a valid date", 400, "VALIDATION_ERROR");
   if (!accountId) throw new AppError("accountId is required", 400, "VALIDATION_ERROR");

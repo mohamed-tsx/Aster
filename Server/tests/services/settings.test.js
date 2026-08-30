@@ -41,6 +41,35 @@ describe("settings service", () => {
     expect((await getSettings()).VISA_FEE_DEFAULT_DIRECT).toBe("400");
   });
 
+  it("accepts zero and a positive value for EMBASSY_COMMISSION_DEFAULT", async () => {
+    const user = await createUser();
+    expect((await getSettings()).EMBASSY_COMMISSION_DEFAULT).toBe("0");
+
+    const zeroed = await updateSettings({ EMBASSY_COMMISSION_DEFAULT: "0" }, user.id);
+    expect(zeroed.EMBASSY_COMMISSION_DEFAULT).toBe("0");
+
+    const fifty = await updateSettings({ EMBASSY_COMMISSION_DEFAULT: "50" }, user.id);
+    expect(fifty.EMBASSY_COMMISSION_DEFAULT).toBe("50");
+    expect((await getSettings()).EMBASSY_COMMISSION_DEFAULT).toBe("50");
+  });
+
+  it("still rejects a negative, blank or non-numeric EMBASSY_COMMISSION_DEFAULT", async () => {
+    const user = await createUser();
+    for (const bad of ["-5", "abc", "", "  "]) {
+      await expect(updateSettings({ EMBASSY_COMMISSION_DEFAULT: bad }, user.id)).rejects.toMatchObject({
+        statusCode: 400,
+        errorCode: "VALIDATION_ERROR",
+      });
+    }
+    expect((await getSettings()).EMBASSY_COMMISSION_DEFAULT).toBe("0");
+  });
+
+  it("still rejects zero for the visa-fee keys", async () => {
+    const user = await createUser();
+    await expect(updateSettings({ VISA_FEE_DEFAULT_DIRECT: "0" }, user.id)).rejects.toThrow(AppError);
+    await expect(updateSettings({ VISA_FEE_DEFAULT_AGENCY: "0" }, user.id)).rejects.toThrow(AppError);
+  });
+
   it("records the updating user", async () => {
     const user = await createUser();
     await updateSettings({ VISA_FEE_DEFAULT_AGENCY: "120" }, user.id);

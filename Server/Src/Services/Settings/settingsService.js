@@ -9,15 +9,23 @@ export const SETTING_DEFAULTS = {
 
 export const SETTING_KEYS = Object.keys(SETTING_DEFAULTS);
 
-// Every current setting is a positive-number string. If a non-numeric setting is
-// ever added, branch here on the key.
+// Settings whose value may legitimately be zero. The embassy commission defaults
+// to "0" (no partnership), so a strictly-positive guard would make the seeded
+// default unsettable. Everything else is a strictly-positive-number string; if a
+// non-numeric setting is ever added, branch here on the key.
+const ZERO_ALLOWED_KEYS = ["EMBASSY_COMMISSION_DEFAULT"];
+
 const assertValidValue = (key, value) => {
-  if (typeof value !== "string" && typeof value !== "number") {
-    throw new AppError(`${key} must be a positive number`, 400, "VALIDATION_ERROR");
+  const allowsZero = ZERO_ALLOWED_KEYS.includes(key);
+  const wording = allowsZero ? "zero or a positive number" : "a positive number";
+  // `Number("")` and `Number(" ")` are both 0, so a blank string would sneak
+  // through the zero-allowed branch — reject it up front.
+  if ((typeof value !== "string" && typeof value !== "number") || (typeof value === "string" && value.trim() === "")) {
+    throw new AppError(`${key} must be ${wording}`, 400, "VALIDATION_ERROR");
   }
   const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0) {
-    throw new AppError(`${key} must be a positive number`, 400, "VALIDATION_ERROR");
+  if (!Number.isFinite(n) || n < 0 || (!allowsZero && n <= 0)) {
+    throw new AppError(`${key} must be ${wording}`, 400, "VALIDATION_ERROR");
   }
 };
 

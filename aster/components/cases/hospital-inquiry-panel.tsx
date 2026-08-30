@@ -44,6 +44,9 @@ const INQUIRY_STATUS_LABEL: Record<string, string> = {
   NOT_SELECTED: "Not selected",
 };
 
+/** Mirrors SENDABLE_CASE_STATUSES in the backend's casesService.js. */
+const SENDABLE_CASE_STATUSES = ["NEW", "HOSPITAL_MATCHING", "HOSPITAL_DECLINED"];
+
 type HospitalInquiryPanelProps = {
   kase: Case;
   onChanged: () => void;
@@ -58,8 +61,11 @@ export function HospitalInquiryPanel({ kase, onChanged }: HospitalInquiryPanelPr
 
   const chosen = kase.inquiries.find((i) => i.isChosen) ?? null;
   const feePaid = kase.visaApplications.some((v) => v.payment);
+  // Gate on the case status the backend actually accepts, not on `!chosen`:
+  // a legacy case with a backfilled chosen inquiry sits outside the sendable set
+  // anyway, and CANCELLED is already excluded by not being in it.
   const canSend =
-    hasPermission("UPDATE_CASES") && kase.status !== "CANCELLED" && !chosen;
+    hasPermission("UPDATE_CASES") && SENDABLE_CASE_STATUSES.includes(kase.status);
 
   const handleSend = async (values: { hospitalId: string; notes?: string }) => {
     try {

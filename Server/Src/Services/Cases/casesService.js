@@ -3,6 +3,10 @@ import Prisma from "../../Config/Prisma/db.js";
 import { AppError } from "../../Utils/ErrorHandler/errorHandler.js";
 import { generateCaseNumber } from "../../Config/Generators/ID/customCaseIdGenerator.js";
 import { saveDocumentLocal } from "../../Utils/Documents/saveDocumentLocal.js";
+import {
+  assertNonNegativeAmount,
+  assertPositiveAmount,
+} from "../../Utils/Validation/assertAmount.js";
 import { EMBASSY_PARTNERSHIP_COMMISSION_CATEGORY } from "../Expenses/expensesService.js";
 
 /**
@@ -724,9 +728,7 @@ export const recordChosenResponse = async (caseId, inquiryId, data, files, userI
   }
 
   const { treatmentCostEstimate, currency, notes } = data;
-  if (treatmentCostEstimate === undefined || treatmentCostEstimate === null || treatmentCostEstimate === "" || Number(treatmentCostEstimate) <= 0) {
-    throw new AppError("A positive treatment cost estimate is required", 400, "VALIDATION_ERROR");
-  }
+  assertPositiveAmount(treatmentCostEstimate, "A positive treatment cost estimate is required");
   if (!CURRENCIES.includes(currency)) {
     throw new AppError(`currency must be one of: ${CURRENCIES.join(", ")}`, 400, "VALIDATION_ERROR");
   }
@@ -821,9 +823,7 @@ export const changeChosenHospital = async (caseId, newInquiryId, data, files, us
   }
 
   const { treatmentCostEstimate, currency, notes } = data;
-  if (treatmentCostEstimate === undefined || treatmentCostEstimate === null || treatmentCostEstimate === "" || Number(treatmentCostEstimate) <= 0) {
-    throw new AppError("A positive treatment cost estimate is required", 400, "VALIDATION_ERROR");
-  }
+  assertPositiveAmount(treatmentCostEstimate, "A positive treatment cost estimate is required");
   if (!CURRENCIES.includes(currency)) throw new AppError(`currency must be one of: ${CURRENCIES.join(", ")}`, 400, "VALIDATION_ERROR");
   const evaluationDoc = files?.evaluationDoc?.[0] ?? null;
   const invitationLetter = files?.invitationLetter?.[0] ?? null;
@@ -834,7 +834,16 @@ export const changeChosenHospital = async (caseId, newInquiryId, data, files, us
     await tx.hospitalInquiry.update({ where: { id: current.id }, data: { isChosen: false, status: "NOT_SELECTED" } });
     await tx.hospitalInquiry.update({
       where: { id: next.id },
-      data: { isChosen: true, status: "ACCEPTED", treatmentCostEstimate, currency, notes: notes || null, respondedAt: new Date() },
+      data: {
+        isChosen: true,
+        status: "ACCEPTED",
+        treatmentCostEstimate,
+        currency,
+        // An omitted `notes` leaves the target inquiry's existing note alone;
+        // an explicit empty string clears it (same contract as recordChosenResponse).
+        notes: notes !== undefined ? notes || null : undefined,
+        respondedAt: new Date(),
+      },
     });
     for (const [file, type] of [[evaluationDoc, "EVALUATION_DOC"], [invitationLetter, "INVITATION_LETTER"]]) {
       const documentId = crypto.randomUUID();
@@ -1129,10 +1138,18 @@ export const markEmbassyVisited = async (caseId, visaApplicationId, data, userId
 
   const commission = data.partnerCommission;
   let commissionAccount = null;
-  if (commission && commission.amount !== undefined && commission.amount !== null && commission.amount !== "" && Number(commission.amount) > 0) {
-    if (!commission.accountId) throw new AppError("A commission account is required", 400, "VALIDATION_ERROR");
-    commissionAccount = await Prisma.account.findUnique({ where: { id: commission.accountId } });
-    if (!commissionAccount) throw new AppError("Commission account not found", 404, "NOT_FOUND");
+  // The commission is optional: an absent block, or a blank/zero amount, skips it.
+  // A supplied-but-non-numeric (or negative) amount is a client error, not a silent skip.
+  if (commission && commission.amount !== undefined && commission.amount !== null && commission.amount !== "") {
+    assertNonNegativeAmount(
+      commission.amount,
+      "partnerCommission.amount must be zero or a positive number",
+    );
+    if (Number(commission.amount) > 0) {
+      if (!commission.accountId) throw new AppError("A commission account is required", 400, "VALIDATION_ERROR");
+      commissionAccount = await Prisma.account.findUnique({ where: { id: commission.accountId } });
+      if (!commissionAccount) throw new AppError("Commission account not found", 404, "NOT_FOUND");
+    }
   }
 
   const [updated] = await Prisma.$transaction([
@@ -1359,7 +1376,7 @@ export const getCaseTimeline = async (caseId) => {
     throw new AppError("Case not found", 404, "NOT_FOUND");
   }
 
-  const [events, notes, payments, expenses, refunds, documents] = await Promise.all([
+  const [events, notes, payments, expenses, refunds, documents, inquiries] = await Promise.all([
     Prisma.caseEvent.findMany({ where: { caseId }, include: { actor: ACTOR_SELECT } }),
     Prisma.caseNote.findMany({ where: { caseId }, include: { author: ACTOR_SELECT } }),
     Prisma.payment.findMany({
@@ -1375,7 +1392,15 @@ export const getCaseTimeline = async (caseId) => {
       },
     }),
     Prisma.document.findMany({ where: { caseId }, include: { uploadedBy: ACTOR_SELECT } }),
+    // CaseEvent stores inquiryId without a relation, so the hospital names for the
+    // HOSPITAL_CHOSEN / HOSPITAL_CHANGED events are resolved with one extra lookup.
+    Prisma.hospitalInquiry.findMany({
+      where: { caseId },
+      select: { id: true, hospital: { select: { name: true } } },
+    }),
   ]);
+
+  const hospitalNameByInquiryId = new Map(inquiries.map((i) => [i.id, i.hospital.name]));
 
   const items = [
     ...events.map((e) => ({
@@ -1384,6 +1409,7 @@ export const getCaseTimeline = async (caseId) => {
       occurredAt: e.createdAt,
       fromStatus: e.fromStatus,
       toStatus: e.toStatus,
+      hospitalName: e.inquiryId ? (hospitalNameByInquiryId.get(e.inquiryId) ?? null) : null,
       actor: e.actor,
     })),
     ...notes.map((n) => ({

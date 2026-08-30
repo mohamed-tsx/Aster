@@ -41,6 +41,11 @@ describe("payables", () => {
     const user = await createUser();
     await expect(createPayable(base({ amount: 0 }), user.id)).rejects.toThrow(AppError);
     await expect(createPayable(base({ currency: "GBP" }), user.id)).rejects.toThrow(AppError);
+    await expect(createPayable(base({ amount: "abc" }), user.id)).rejects.toMatchObject({
+      statusCode: 400,
+      errorCode: "VALIDATION_ERROR",
+      message: "amount must be a positive number",
+    });
     await expect(createPayable(base({ caseId: "nope" }), user.id)).rejects.toThrow("Case not found");
     const p = await createPayable(base(), user.id);
     await expect(settlePayable(p.id, { accountId: "nope", paidOn: "2026-03-15" }, user.id)).rejects.toThrow("Account not found");

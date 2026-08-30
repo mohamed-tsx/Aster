@@ -13,9 +13,17 @@ export type CaseTimelineItem = {
   occurredAt: string;
   actor: TimelineActor;
   // CASE_STATUS_EVENT
-  subtype?: "CASE_CREATED" | "CASE_STATUS_CHANGED" | "VISA_STATUS_CHANGED" | "INQUIRY_STATUS_CHANGED";
+  subtype?:
+    | "CASE_CREATED"
+    | "CASE_STATUS_CHANGED"
+    | "VISA_STATUS_CHANGED"
+    | "INQUIRY_STATUS_CHANGED"
+    | "HOSPITAL_CHOSEN"
+    | "HOSPITAL_CHANGED";
   fromStatus?: string | null;
   toStatus?: string;
+  /** Set on events that carry an inquiryId (HOSPITAL_CHOSEN / HOSPITAL_CHANGED). */
+  hospitalName?: string | null;
   // NOTE
   body?: string;
   // PAYMENT_RECEIVED / EXPENSE_PAID / REFUND_ISSUED

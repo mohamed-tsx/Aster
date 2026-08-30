@@ -30,6 +30,21 @@ describe("createLoan", () => {
     await expect(createLoan(base({ currency: "GBP", accountId: account.id }), user.id)).rejects.toThrow(AppError);
     await expect(createLoan(base({ interestMethod: "WEEKLY", accountId: account.id }), user.id)).rejects.toThrow(AppError);
   });
+
+  it("rejects a non-numeric principal or interest rate with a 400 rather than a Prisma 500", async () => {
+    const user = await createUser();
+    const account = await createAccount();
+    await expect(createLoan(base({ principal: "abc", accountId: account.id }), user.id)).rejects.toMatchObject({
+      statusCode: 400,
+      errorCode: "VALIDATION_ERROR",
+      message: "principal must be a positive number",
+    });
+    await expect(createLoan(base({ interestRatePct: "abc", accountId: account.id }), user.id)).rejects.toMatchObject({
+      statusCode: 400,
+      errorCode: "VALIDATION_ERROR",
+      message: "interestRatePct must be zero or a positive number",
+    });
+  });
 });
 
 describe("recordLoanRepayment", () => {
@@ -57,6 +72,19 @@ describe("recordLoanRepayment", () => {
     await expect(
       recordLoanRepayment(loan.id, { amount: 1, paidOn: "2027-03-01", accountId: account.id }, user.id),
     ).rejects.toThrow(/already settled/i);
+  });
+
+  it("rejects a non-numeric repayment amount with a 400 rather than a Prisma 500", async () => {
+    const user = await createUser();
+    const account = await createAccount();
+    const loan = await createLoan(base({ accountId: account.id }), user.id);
+    await expect(
+      recordLoanRepayment(loan.id, { amount: "abc", paidOn: "2026-06-01", accountId: account.id }, user.id),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      errorCode: "VALIDATION_ERROR",
+      message: "amount must be a positive number",
+    });
   });
 });
 

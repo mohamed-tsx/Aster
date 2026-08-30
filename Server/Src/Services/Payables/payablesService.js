@@ -1,5 +1,6 @@
 import Prisma from "../../Config/Prisma/db.js";
 import { AppError } from "../../Utils/ErrorHandler/errorHandler.js";
+import { assertPositiveAmount } from "../../Utils/Validation/assertAmount.js";
 
 const CURRENCIES = ["USD", "INR"];
 
@@ -12,9 +13,7 @@ const INCLUDE = {
 export const createPayable = async (data, userId) => {
   const { payeeName, amount, currency, reason, raisedOn, caseId } = data;
   if (!payeeName?.trim()) throw new AppError("payeeName is required", 400, "VALIDATION_ERROR");
-  if (amount === undefined || amount === null || amount === "" || Number(amount) <= 0) {
-    throw new AppError("amount must be a positive number", 400, "VALIDATION_ERROR");
-  }
+  assertPositiveAmount(amount, "amount must be a positive number");
   if (!CURRENCIES.includes(currency)) throw new AppError(`currency must be one of: ${CURRENCIES.join(", ")}`, 400, "VALIDATION_ERROR");
   if (!reason?.trim()) throw new AppError("reason is required", 400, "VALIDATION_ERROR");
   const raised = new Date(raisedOn);
