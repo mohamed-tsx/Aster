@@ -3,6 +3,8 @@
 import { PageHeader } from "@/components/users/page-header";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { ChangePasswordForm } from "@/components/settings/change-password-form";
+import { FinanceDefaultsForm } from "@/components/settings/finance-defaults-form";
+import { useRBAC } from "@/hooks/useRBAC";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthStore } from "@/stores/auth-store";
 import { updateProfile, changePassword, getErrorMessage } from "@/services/auth";
@@ -10,6 +12,7 @@ import type { ProfileFormValues, ChangePasswordFormValues } from "@/lib/validati
 
 export default function SettingsPage() {
   const toast = useToast();
+  const { hasPermission } = useRBAC();
   const { user, updateUser } = useAuthStore();
 
   if (!user) return null;
@@ -65,6 +68,8 @@ export default function SettingsPage() {
       />
 
       <ChangePasswordForm onSubmit={handlePasswordSubmit} />
+
+      {hasPermission("MANAGE_SETTINGS") && <FinanceDefaultsForm />}
     </div>
   );
 }

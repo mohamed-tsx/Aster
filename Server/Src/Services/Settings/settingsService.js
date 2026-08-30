@@ -1,0 +1,56 @@
+import Prisma from "../../Config/Prisma/db.js";
+import { AppError } from "../../Utils/ErrorHandler/errorHandler.js";
+
+export const SETTING_DEFAULTS = {
+  VISA_FEE_DEFAULT_DIRECT: "400",
+  VISA_FEE_DEFAULT_AGENCY: "100",
+};
+
+export const SETTING_KEYS = Object.keys(SETTING_DEFAULTS);
+
+// Every current setting is a positive-number string. If a non-numeric setting is
+// ever added, branch here on the key.
+const assertValidValue = (key, value) => {
+  if (typeof value !== "string" && typeof value !== "number") {
+    throw new AppError(`${key} must be a positive number`, 400, "VALIDATION_ERROR");
+  }
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) {
+    throw new AppError(`${key} must be a positive number`, 400, "VALIDATION_ERROR");
+  }
+};
+
+export const getSettings = async () => {
+  const rows = await Prisma.appSetting.findMany();
+  const stored = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  return { ...SETTING_DEFAULTS, ...stored };
+};
+
+/**
+ * @param {Record<string,string>} patch
+ * @param {string} userId
+ */
+export const updateSettings = async (patch, userId) => {
+  const entries = Object.entries(patch ?? {});
+  if (entries.length === 0) {
+    throw new AppError("No settings supplied", 400, "VALIDATION_ERROR");
+  }
+  for (const [key, value] of entries) {
+    if (!SETTING_KEYS.includes(key)) {
+      throw new AppError(`Unknown setting: ${key}`, 400, "VALIDATION_ERROR");
+    }
+    assertValidValue(key, value);
+  }
+
+  await Prisma.$transaction(
+    entries.map(([key, value]) =>
+      Prisma.appSetting.upsert({
+        where: { key },
+        create: { key, value: String(value), updatedById: userId },
+        update: { value: String(value), updatedById: userId },
+      }),
+    ),
+  );
+
+  return getSettings();
+};
