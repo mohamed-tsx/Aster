@@ -33,6 +33,7 @@ type HospitalFormDialogProps = {
 const EMPTY_VALUES: HospitalFormValues = {
   name: "",
   city: "",
+  country: "",
   specialties: "",
   contactPerson: "",
   phone: "",
@@ -54,6 +55,7 @@ export function HospitalFormDialog({
           ? {
               name: hospital.name,
               city: hospital.city,
+              country: hospital.country,
               specialties: hospital.specialties ?? "",
               contactPerson: hospital.contactPerson ?? "",
               phone: hospital.phone ?? "",
@@ -107,6 +109,19 @@ export function HospitalFormDialog({
                   <FormLabel>City</FormLabel>
                   <FormControl>
                     <Input {...field} placeholder="e.g. Kochi" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="country"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Country</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="e.g. India" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

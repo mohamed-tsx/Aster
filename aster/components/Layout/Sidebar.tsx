@@ -150,6 +150,27 @@ const navigation: NavigationItem[] = [
     permission: "VIEW_FINANCE",
   },
   {
+    name: "Revenue",
+    href: "/dashboard/revenue",
+    icon: Receipt,
+    children: null,
+    permission: "VIEW_FINANCE",
+  },
+  {
+    name: "Loans",
+    href: "/dashboard/loans",
+    icon: Wallet,
+    children: null,
+    permission: "VIEW_FINANCE",
+  },
+  {
+    name: "Payables",
+    href: "/dashboard/payables",
+    icon: Wallet,
+    children: null,
+    permission: "VIEW_FINANCE",
+  },
+  {
     name: "Reports",
     href: "/dashboard/reports/cases",
     icon: FileBarChart,

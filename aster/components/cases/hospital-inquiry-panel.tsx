@@ -6,10 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SendInquiryDialog } from "@/components/cases/send-inquiry-dialog";
-import { RespondInquiryDialog } from "@/components/cases/respond-inquiry-dialog";
+import { RecordResponseDialog } from "@/components/cases/record-response-dialog";
+import { ChangeHospitalDialog } from "@/components/cases/change-hospital-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useRBAC } from "@/hooks/useRBAC";
-import { sendInquiry, respondToInquiry, getErrorMessage } from "@/services/cases";
+import {
+  sendInquiry,
+  recordChosenResponse,
+  changeChosenHospital,
+  declineInquiry,
+  getErrorMessage,
+} from "@/services/cases";
+import { getImageUrl } from "@/utils/imageUtils";
 import type { Case, HospitalInquiry } from "@/types/case";
 
 function formatDate(iso: string) {
@@ -22,10 +30,18 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
-const INQUIRY_STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> = {
+const INQUIRY_STATUS_VARIANT: Record<
+  string,
+  "default" | "secondary" | "destructive" | "outline"
+> = {
   PENDING: "secondary",
   ACCEPTED: "default",
   DECLINED: "destructive",
+  NOT_SELECTED: "outline",
+};
+
+const INQUIRY_STATUS_LABEL: Record<string, string> = {
+  NOT_SELECTED: "Not selected",
 };
 
 type HospitalInquiryPanelProps = {
@@ -37,10 +53,13 @@ export function HospitalInquiryPanel({ kase, onChanged }: HospitalInquiryPanelPr
   const toast = useToast();
   const { hasPermission } = useRBAC();
   const [sendOpen, setSendOpen] = useState(false);
-  const [respondingInquiry, setRespondingInquiry] = useState<HospitalInquiry | null>(null);
+  const [recordingInquiry, setRecordingInquiry] = useState<HospitalInquiry | null>(null);
+  const [changeOpen, setChangeOpen] = useState(false);
 
-  const hasPending = kase.inquiries.some((i) => i.status === "PENDING");
-  const canSend = hasPermission("UPDATE_CASES") && !hasPending && kase.status !== "CANCELLED";
+  const chosen = kase.inquiries.find((i) => i.isChosen) ?? null;
+  const feePaid = kase.visaApplications.some((v) => v.payment);
+  const canSend =
+    hasPermission("UPDATE_CASES") && kase.status !== "CANCELLED" && !chosen;
 
   const handleSend = async (values: { hospitalId: string; notes?: string }) => {
     try {
@@ -54,16 +73,38 @@ export function HospitalInquiryPanel({ kase, onChanged }: HospitalInquiryPanelPr
     }
   };
 
-  const handleRespond = async (values: Record<string, unknown>) => {
-    if (!respondingInquiry) return;
+  const handleRecord = async (payload: FormData) => {
+    if (!recordingInquiry) return;
     try {
-      await respondToInquiry(kase.id, respondingInquiry.id, values);
+      await recordChosenResponse(kase.id, recordingInquiry.id, payload);
       toast.success("Response recorded");
-      setRespondingInquiry(null);
+      setRecordingInquiry(null);
       onChanged();
-    } catch (error) {
-      toast.error("Could not record response", getErrorMessage(error));
-      throw error;
+    } catch (e) {
+      toast.error("Could not record response", getErrorMessage(e));
+      throw e;
+    }
+  };
+
+  const handleChange = async (payload: FormData) => {
+    try {
+      await changeChosenHospital(kase.id, payload);
+      toast.success("Chosen hospital changed");
+      setChangeOpen(false);
+      onChanged();
+    } catch (e) {
+      toast.error("Could not change hospital", getErrorMessage(e));
+      throw e;
+    }
+  };
+
+  const handleDecline = async (inquiry: HospitalInquiry) => {
+    try {
+      await declineInquiry(kase.id, inquiry.id);
+      toast.success("Inquiry declined");
+      onChanged();
+    } catch (e) {
+      toast.error("Could not decline", getErrorMessage(e));
     }
   };
 
@@ -89,7 +130,7 @@ export function HospitalInquiryPanel({ kase, onChanged }: HospitalInquiryPanelPr
           >
             <div>
               <p className="text-sm font-medium">
-                {inquiry.hospital.name} — {inquiry.hospital.city}
+                {inquiry.hospital.name} — {inquiry.hospital.city}, {inquiry.hospital.country}
               </p>
               <p className="text-xs text-muted-foreground">
                 Sent {formatDate(inquiry.sentAt)}
@@ -101,21 +142,61 @@ export function HospitalInquiryPanel({ kase, onChanged }: HospitalInquiryPanelPr
                 </p>
               )}
               {inquiry.notes && <p className="mt-1 text-xs">{inquiry.notes}</p>}
+              {inquiry.isChosen && inquiry.documents.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-3">
+                  {inquiry.documents.map((doc) => (
+                    <a
+                      key={doc.id}
+                      href={getImageUrl(doc.fileUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-primary underline"
+                    >
+                      {doc.fileName}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant={INQUIRY_STATUS_VARIANT[inquiry.status]}>
-                {inquiry.status}
-              </Badge>
-              {inquiry.status === "PENDING" &&
-                hasPermission("UPDATE_CASES") &&
-                kase.status !== "CANCELLED" && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setRespondingInquiry(inquiry)}
-                >
-                  Record response
-                </Button>
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-2">
+                {inquiry.isChosen && <Badge>Chosen</Badge>}
+                <Badge variant={INQUIRY_STATUS_VARIANT[inquiry.status]}>
+                  {INQUIRY_STATUS_LABEL[inquiry.status] ?? inquiry.status}
+                </Badge>
+              </div>
+              {inquiry.isChosen &&
+                !feePaid &&
+                hasPermission("RECORD_HOSPITAL_RESPONSE") && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setChangeOpen(true)}
+                  >
+                    Change hospital
+                  </Button>
+                )}
+              {inquiry.status === "PENDING" && !chosen && (
+                <div className="flex items-center gap-2">
+                  {hasPermission("RECORD_HOSPITAL_RESPONSE") && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setRecordingInquiry(inquiry)}
+                    >
+                      Record chosen response
+                    </Button>
+                  )}
+                  {hasPermission("UPDATE_CASES") && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDecline(inquiry)}
+                    >
+                      Mark declined
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -123,12 +204,22 @@ export function HospitalInquiryPanel({ kase, onChanged }: HospitalInquiryPanelPr
       </CardContent>
 
       <SendInquiryDialog open={sendOpen} onOpenChange={setSendOpen} onSubmit={handleSend} />
-      <RespondInquiryDialog
-        open={!!respondingInquiry}
-        onOpenChange={(open) => !open && setRespondingInquiry(null)}
-        inquiry={respondingInquiry}
-        onSubmit={handleRespond}
+      <RecordResponseDialog
+        open={!!recordingInquiry}
+        onOpenChange={(open) => !open && setRecordingInquiry(null)}
+        inquiry={recordingInquiry}
+        title="Record chosen hospital response"
+        onSubmit={handleRecord}
       />
+      {chosen && (
+        <ChangeHospitalDialog
+          open={changeOpen}
+          onOpenChange={setChangeOpen}
+          kase={kase}
+          currentChosen={chosen}
+          onSubmit={handleChange}
+        />
+      )}
     </Card>
   );
 }

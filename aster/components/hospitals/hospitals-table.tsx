@@ -77,15 +77,10 @@ export function HospitalsTable() {
   const handleSubmit = async (values: HospitalFormValues) => {
     try {
       if (editingHospital) {
-        // `country` is not yet collected by HospitalFormDialog (added in a later
-        // frontend task); preserve the existing value so edits don't wipe it.
-        await updateHospital(editingHospital.id, {
-          ...values,
-          country: editingHospital.country,
-        });
+        await updateHospital(editingHospital.id, values);
         toast.success("Hospital updated");
       } else {
-        await createHospital({ ...values, country: "" });
+        await createHospital(values);
         toast.success("Hospital created");
       }
       setDialogOpen(false);

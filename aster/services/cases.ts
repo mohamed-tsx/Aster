@@ -82,19 +82,6 @@ export async function sendInquiry(
   return unwrap(response);
 }
 
-export async function respondToInquiry(
-  caseId: string,
-  inquiryId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  payload: Record<string, any>,
-): Promise<HospitalInquiry> {
-  const response = await api.patch<ApiSuccess<HospitalInquiry>>(
-    `/cases/${caseId}/inquiries/${inquiryId}`,
-    payload,
-  );
-  return unwrap(response);
-}
-
 export async function recordChosenResponse(
   caseId: string,
   inquiryId: string,
