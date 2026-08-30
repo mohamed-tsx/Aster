@@ -3,6 +3,13 @@ import { AppError } from "../../Utils/ErrorHandler/errorHandler.js";
 import { generateCaseNumber } from "../../Config/Generators/ID/customCaseIdGenerator.js";
 
 /**
+ * Agency-sourced cases don't get their VisaApplication rows auto-created on
+ * hospital acceptance — those are created lazily later in the workflow.
+ * @param {{ reachOutType?: string }} kase
+ */
+export const isAgencyCase = (kase) => kase.reachOutType === "AGENCY";
+
+/**
  * Builds a `Prisma.caseEvent.create(...)` op for inclusion in a `$transaction`
  * array — Case/VisaApplication/HospitalInquiry only ever store their *current*
  * status, so this is the only record of "moved from X to Y, when, by whom".
@@ -584,7 +591,7 @@ export const respondToInquiry = async (caseId, inquiryId, data, userId) => {
     }),
   ];
 
-  if (status === "ACCEPTED") {
+  if (status === "ACCEPTED" && !isAgencyCase(kase)) {
     transactionOps.push(
       Prisma.visaApplication.create({
         data: { caseId, travelerType: "PATIENT" },
