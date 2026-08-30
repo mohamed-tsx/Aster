@@ -18,18 +18,20 @@ export type Attendant = {
   relationToPatient: string;
 };
 
-export type HospitalInquiryStatus = "PENDING" | "ACCEPTED" | "DECLINED";
+export type HospitalInquiryStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "NOT_SELECTED";
 
 export type HospitalInquiry = {
   id: string;
   hospitalId: string;
   hospital: Hospital;
   status: HospitalInquiryStatus;
+  isChosen: boolean;
   treatmentCostEstimate: string | null;
   currency: "USD" | "INR" | null;
   notes: string | null;
   sentAt: string;
   respondedAt: string | null;
+  documents: CaseDocument[];
 };
 
 export type CaseStatus =

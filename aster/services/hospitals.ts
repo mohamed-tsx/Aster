@@ -13,6 +13,7 @@ function unwrap<T>(response: { data: ApiSuccess<T> }): T {
 export type HospitalPayload = {
   name: string;
   city: string;
+  country: string;
   specialties?: string;
   contactPerson?: string;
   phone?: string;

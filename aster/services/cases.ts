@@ -95,6 +95,41 @@ export async function respondToInquiry(
   return unwrap(response);
 }
 
+export async function recordChosenResponse(
+  caseId: string,
+  inquiryId: string,
+  payload: FormData,
+): Promise<Case> {
+  const response = await api.post<ApiSuccess<Case>>(
+    `/cases/${caseId}/inquiries/${inquiryId}/response`,
+    payload,
+  );
+  return unwrap(response);
+}
+
+export async function changeChosenHospital(
+  caseId: string,
+  payload: FormData,
+): Promise<Case> {
+  const response = await api.post<ApiSuccess<Case>>(
+    `/cases/${caseId}/chosen-hospital`,
+    payload,
+  );
+  return unwrap(response);
+}
+
+export async function declineInquiry(
+  caseId: string,
+  inquiryId: string,
+  notes?: string,
+): Promise<HospitalInquiry> {
+  const response = await api.patch<ApiSuccess<HospitalInquiry>>(
+    `/cases/${caseId}/inquiries/${inquiryId}`,
+    { status: "DECLINED", notes: notes || undefined },
+  );
+  return unwrap(response);
+}
+
 // Omits `notes` entirely when its trimmed value is empty, rather than sending
 // `notes: ""`. The backend's three visa-application actions treat an *absent*
 // `notes` key as "leave the existing value alone" but a present-but-blank string
@@ -135,7 +170,11 @@ export async function recordFeePaymentByTraveler(
 export async function markEmbassyVisited(
   caseId: string,
   visaApplicationId: string,
-  payload: { embassyVisitDate: string; notes?: string },
+  payload: {
+    embassyVisitDate: string;
+    notes?: string;
+    partnerCommission?: { amount: string; accountId: string };
+  },
 ): Promise<VisaApplication> {
   const response = await api.patch<ApiSuccess<VisaApplication>>(
     `/cases/${caseId}/visa-applications/${visaApplicationId}/embassy-visit`,

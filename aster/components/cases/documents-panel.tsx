@@ -18,6 +18,7 @@ const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   PATIENT_PASSPORT: "Patient passport",
   ATTENDANT_PASSPORT: "Attendant passport",
   CASE_DOCUMENT: "Case document",
+  EVALUATION_DOC: "Evaluation document",
   INVITATION_LETTER: "Invitation letter",
   VISA_COPY: "Visa copy",
   OTHER: "Other",

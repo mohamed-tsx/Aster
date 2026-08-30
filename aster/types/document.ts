@@ -4,6 +4,7 @@ export type DocumentType =
   | "PATIENT_PASSPORT"
   | "ATTENDANT_PASSPORT"
   | "CASE_DOCUMENT"
+  | "EVALUATION_DOC"
   | "INVITATION_LETTER"
   | "VISA_COPY"
   | "OTHER";
