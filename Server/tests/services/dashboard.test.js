@@ -12,6 +12,8 @@ import {
   createCase,
   createVisaApplication,
   createPayment,
+  createLoan,
+  createPayable,
 } from "../helpers/factories.js";
 
 describe("getCaseStats", () => {
@@ -64,6 +66,19 @@ describe("getFinanceStats", () => {
     const stats = await getFinanceStats();
 
     expect(stats.totalBalances.USD).toBe(85);
+  });
+});
+
+describe("getFinanceStats — obligations", () => {
+  it("sums outstanding loans and payables by currency", async () => {
+    const user = await createUser();
+    const account = await createAccount();
+    await createLoan({ accountId: account.id, recordedById: user.id, principal: 1000, interestRatePct: 0, currency: "USD" });
+    await createPayable({ recordedById: user.id, amount: 250, currency: "USD" });
+
+    const stats = await getFinanceStats();
+    expect(stats.outstandingLoans.USD).toBeCloseTo(1000, 1);
+    expect(stats.outstandingPayables.USD).toBe(250);
   });
 });
 

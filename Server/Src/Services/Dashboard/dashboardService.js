@@ -1,5 +1,6 @@
 import Prisma from "../../Config/Prisma/db.js";
 import { listAccounts } from "../Accounts/accountsService.js";
+import { loanProjection } from "../Loans/loanProjection.js";
 
 const CASE_STATUSES = [
   "NEW",
@@ -41,7 +42,26 @@ export const getFinanceStats = async () => {
     }
   }
 
-  return { totalBalances, accountCount: accounts.length };
+  const [loans, payables] = await Promise.all([
+    Prisma.loan.findMany({ where: { status: "ACTIVE" }, include: { repayments: true } }),
+    Prisma.payable.findMany({ where: { status: "OUTSTANDING" } }),
+  ]);
+
+  const outstandingLoans = {};
+  const outstandingPayables = {};
+  for (const currency of FINANCE_CURRENCIES) {
+    outstandingLoans[currency] = 0;
+    outstandingPayables[currency] = 0;
+  }
+  for (const loan of loans) {
+    outstandingLoans[loan.currency] =
+      (outstandingLoans[loan.currency] || 0) + loanProjection(loan, loan.repayments).outstanding;
+  }
+  for (const p of payables) {
+    outstandingPayables[p.currency] = (outstandingPayables[p.currency] || 0) + Number(p.amount);
+  }
+
+  return { totalBalances, accountCount: accounts.length, outstandingLoans, outstandingPayables };
 };
 
 /**
