@@ -41,6 +41,10 @@ async function main() {
     "MANAGE_FINANCE",
     "ISSUE_REFUNDS",
     "MANAGE_SETTINGS",
+    "RECORD_HOSPITAL_RESPONSE",
+    "MANAGE_REVENUE",
+    "MANAGE_LOANS",
+    "MANAGE_PAYABLES",
   ];
 
   const allPermissionNames = [

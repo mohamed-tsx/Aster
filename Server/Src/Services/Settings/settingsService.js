@@ -4,6 +4,7 @@ import { AppError } from "../../Utils/ErrorHandler/errorHandler.js";
 export const SETTING_DEFAULTS = {
   VISA_FEE_DEFAULT_DIRECT: "400",
   VISA_FEE_DEFAULT_AGENCY: "100",
+  EMBASSY_COMMISSION_DEFAULT: "0",
 };
 
 export const SETTING_KEYS = Object.keys(SETTING_DEFAULTS);

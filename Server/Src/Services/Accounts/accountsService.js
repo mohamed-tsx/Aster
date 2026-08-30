@@ -4,8 +4,8 @@ import { AppError } from "../../Utils/ErrorHandler/errorHandler.js";
 const ACCOUNT_TYPES = ["BANK", "CASH", "OTHER"];
 const CURRENCIES = ["USD", "INR"];
 
-export const CREDIT_TYPES = ["OPENING_BALANCE", "PAYMENT_RECEIVED"];
-export const DEBIT_TYPES = ["EXPENSE_PAID", "REFUND_ISSUED"];
+export const CREDIT_TYPES = ["OPENING_BALANCE", "PAYMENT_RECEIVED", "REVENUE_RECEIVED", "LOAN_RECEIVED"];
+export const DEBIT_TYPES = ["EXPENSE_PAID", "REFUND_ISSUED", "LOAN_REPAYMENT", "PAYABLE_SETTLED"];
 
 /**
  * The single place account balance is computed — never duplicate this math
@@ -65,6 +65,10 @@ const TRANSACTION_LIST_INCLUDE = {
       },
     },
   },
+  revenue: { select: { id: true, category: true, case: { select: { id: true, caseNumber: true } } } },
+  loan: { select: { id: true, lenderName: true } },
+  loanRepayment: { select: { id: true, loan: { select: { id: true, lenderName: true } } } },
+  payable: { select: { id: true, payeeName: true, reason: true } },
 };
 
 /**

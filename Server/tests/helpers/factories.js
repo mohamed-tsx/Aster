@@ -64,7 +64,50 @@ export const createCase = async ({ patientId, ...overrides } = {}) => {
 
 export const createHospital = async (overrides = {}) =>
   Prisma.hospital.create({
-    data: { name: `Hospital ${unique()}`, city: "Testville", ...overrides },
+    data: { name: `Hospital ${unique()}`, city: "Testville", country: "Testland", ...overrides },
+  });
+
+export const createLoan = async ({ accountId, recordedById, ...overrides } = {}) =>
+  Prisma.loan.create({
+    data: {
+      lenderName: `Lender ${unique()}`,
+      principal: 1000,
+      currency: "USD",
+      interestRatePct: 12,
+      interestMethod: "SIMPLE",
+      disbursedOn: new Date("2026-01-01"),
+      termMonths: 12,
+      dueOn: new Date("2027-01-01"),
+      accountId,
+      recordedById,
+      ...overrides,
+    },
+  });
+
+export const createRevenue = async ({ accountId, recordedById, ...overrides } = {}) =>
+  Prisma.revenue.create({
+    data: {
+      category: "OTHER_INCOME",
+      amount: 500,
+      currency: "USD",
+      receivedOn: new Date("2026-02-01"),
+      accountId,
+      recordedById,
+      ...overrides,
+    },
+  });
+
+export const createPayable = async ({ recordedById, ...overrides } = {}) =>
+  Prisma.payable.create({
+    data: {
+      payeeName: `Payee ${unique()}`,
+      amount: 300,
+      currency: "USD",
+      reason: "Test payable",
+      raisedOn: new Date("2026-02-01"),
+      recordedById,
+      ...overrides,
+    },
   });
 
 export const createVisaApplication = async ({ caseId, ...overrides } = {}) =>

@@ -30,6 +30,10 @@ model User {
   caseNotesAuthored          CaseNote[]
   caseEventsActed            CaseEvent[]
   appSettingsUpdated         AppSetting[]
+  revenuesRecorded           Revenue[]
+  loansRecorded              Loan[]               @relation("LoansRecorded")
+  loanRepaymentsRecorded     LoanRepayment[]      @relation("LoanRepaymentsRecorded")
+  payablesRecorded           Payable[]            @relation("PayablesRecorded")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -136,6 +140,8 @@ model Case {
   expenses         Expense[]
   caseNotes        CaseNote[]
   events           CaseEvent[]
+  revenues         Revenue[]
+  payables         Payable[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -162,6 +168,8 @@ enum CaseEventType {
   CASE_STATUS_CHANGED
   VISA_STATUS_CHANGED
   INQUIRY_STATUS_CHANGED
+  HOSPITAL_CHOSEN
+  HOSPITAL_CHANGED
 }
 
 // System-recorded status-transition history — Case/VisaApplication/
@@ -193,6 +201,7 @@ model Hospital {
   id            String  @id @default(cuid())
   name          String
   city          String
+  country       String
   specialties   String?
   contactPerson String?
   phone         String?
@@ -213,9 +222,12 @@ model HospitalInquiry {
   hospital   Hospital @relation(fields: [hospitalId], references: [id])
 
   status                HospitalInquiryStatus @default(PENDING)
+  isChosen              Boolean               @default(false)
   treatmentCostEstimate Decimal?              @db.Decimal(12, 2)
   currency              Currency?
   notes                 String?
+
+  documents Document[]
 
   sentAt      DateTime  @default(now())
   respondedAt DateTime?
@@ -255,6 +267,9 @@ model Document {
   type     DocumentType
   fileUrl  String
   fileName String
+
+  hospitalInquiryId String?
+  hospitalInquiry   HospitalInquiry? @relation(fields: [hospitalInquiryId], references: [id], onDelete: SetNull)
 
   uploadedById String
   uploadedBy   User   @relation(fields: [uploadedById], references: [id])
@@ -322,6 +337,79 @@ model Refund {
   accountTransaction AccountTransaction?
 }
 
+// ---------- Revenue, loans & payables ----------
+
+model Revenue {
+  id                 String              @id @default(cuid())
+  category           RevenueCategory
+  amount             Decimal             @db.Decimal(12, 2)
+  currency           Currency
+  description        String?
+  receivedOn         DateTime
+  caseId             String?
+  case               Case?               @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  accountId          String
+  account            Account             @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  recordedById       String
+  recordedBy         User                @relation(fields: [recordedById], references: [id])
+  accountTransaction AccountTransaction?
+  createdAt          DateTime            @default(now())
+}
+
+model Loan {
+  id                 String              @id @default(cuid())
+  lenderName         String
+  principal          Decimal             @db.Decimal(12, 2)
+  currency           Currency
+  interestRatePct    Decimal             @db.Decimal(6, 3)
+  interestMethod     LoanInterestMethod
+  disbursedOn        DateTime
+  termMonths         Int
+  dueOn              DateTime
+  status             LoanStatus          @default(ACTIVE)
+  notes              String?
+  accountId          String
+  account            Account             @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  recordedById       String
+  recordedBy         User                @relation("LoansRecorded", fields: [recordedById], references: [id])
+  repayments         LoanRepayment[]
+  accountTransaction AccountTransaction?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model LoanRepayment {
+  id                 String              @id @default(cuid())
+  loanId             String
+  loan               Loan                @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  amount             Decimal             @db.Decimal(12, 2)
+  paidOn             DateTime
+  accountId          String
+  account            Account             @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  recordedById       String
+  recordedBy         User                @relation("LoanRepaymentsRecorded", fields: [recordedById], references: [id])
+  accountTransaction AccountTransaction?
+  createdAt          DateTime            @default(now())
+}
+
+model Payable {
+  id                 String              @id @default(cuid())
+  payeeName          String
+  caseId             String?
+  case               Case?               @relation(fields: [caseId], references: [id], onDelete: Restrict)
+  amount             Decimal             @db.Decimal(12, 2)
+  currency           Currency
+  reason             String
+  raisedOn           DateTime
+  status             PayableStatus       @default(OUTSTANDING)
+  settledOn          DateTime?
+  recordedById       String
+  recordedBy         User                @relation("PayablesRecorded", fields: [recordedById], references: [id])
+  accountTransaction AccountTransaction?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
 // ---------- Accounts & ledger ----------
 
 model Account {
@@ -332,6 +420,10 @@ model Account {
   notes    String?
 
   transactions AccountTransaction[]
+
+  revenues       Revenue[]
+  loans          Loan[]
+  loanRepayments LoanRepayment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -355,6 +447,15 @@ model AccountTransaction {
 
   refundId String? @unique
   refund   Refund? @relation(fields: [refundId], references: [id], onDelete: Restrict)
+
+  revenueId       String?        @unique
+  revenue         Revenue?       @relation(fields: [revenueId], references: [id], onDelete: Restrict)
+  loanId          String?        @unique
+  loan            Loan?          @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  loanRepaymentId String?        @unique
+  loanRepayment   LoanRepayment? @relation(fields: [loanRepaymentId], references: [id], onDelete: Restrict)
+  payableId       String?        @unique
+  payable         Payable?       @relation(fields: [payableId], references: [id], onDelete: Restrict)
 
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
@@ -404,6 +505,7 @@ enum HospitalInquiryStatus {
   PENDING
   ACCEPTED
   DECLINED
+  NOT_SELECTED
 }
 
 enum TravelerType {
@@ -423,6 +525,7 @@ enum DocumentType {
   PATIENT_PASSPORT
   ATTENDANT_PASSPORT
   CASE_DOCUMENT
+  EVALUATION_DOC
   INVITATION_LETTER
   VISA_COPY
   OTHER
@@ -444,4 +547,28 @@ enum AccountTransactionType {
   PAYMENT_RECEIVED
   EXPENSE_PAID
   REFUND_ISSUED
+  REVENUE_RECEIVED
+  LOAN_RECEIVED
+  LOAN_REPAYMENT
+  PAYABLE_SETTLED
+}
+
+enum RevenueCategory {
+  HOSPITAL_REFERRAL_COMMISSION
+  OTHER_INCOME
+}
+
+enum LoanInterestMethod {
+  SIMPLE
+  COMPOUND_MONTHLY
+}
+
+enum LoanStatus {
+  ACTIVE
+  SETTLED
+}
+
+enum PayableStatus {
+  OUTSTANDING
+  SETTLED
 }
