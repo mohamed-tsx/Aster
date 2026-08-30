@@ -605,7 +605,7 @@ export const sendInquiry = async (caseId, data, userId) => {
 /**
  * @param {string} caseId
  * @param {string} inquiryId
- * @param {{ status: "ACCEPTED" | "DECLINED", treatmentCostEstimate?: number, currency?: string, notes?: string }} data
+ * @param {{ status?: "DECLINED", notes?: string }} data
  * @param {string} userId
  */
 export const respondToInquiry = async (caseId, inquiryId, data, userId) => {
@@ -632,78 +632,55 @@ export const respondToInquiry = async (caseId, inquiryId, data, userId) => {
     throw new AppError("This inquiry has already been responded to", 400, "VALIDATION_ERROR");
   }
 
-  const { status, treatmentCostEstimate, currency, notes } = data;
-  if (!["ACCEPTED", "DECLINED"].includes(status)) {
-    throw new AppError("status must be ACCEPTED or DECLINED", 400, "VALIDATION_ERROR");
-  }
-  if (
-    treatmentCostEstimate !== undefined &&
-    treatmentCostEstimate !== null &&
-    treatmentCostEstimate !== "" &&
-    !currency
-  ) {
+  const { status, notes } = data;
+  if (status !== undefined && status !== "DECLINED") {
     throw new AppError(
-      "currency is required when treatmentCostEstimate is provided",
+      "Only a decline can be recorded here — use the record-response action to choose a hospital.",
       400,
       "VALIDATION_ERROR",
     );
   }
 
-  const caseStatus = status === "ACCEPTED" ? "HOSPITAL_ACCEPTED" : "HOSPITAL_DECLINED";
+  const remainingPending = await Prisma.hospitalInquiry.count({
+    where: { caseId, status: "PENDING", id: { not: inquiryId } },
+  });
+  const caseGoesDeclined =
+    remainingPending === 0 &&
+    !(await Prisma.hospitalInquiry.findFirst({ where: { caseId, isChosen: true } }));
 
-  const transactionOps = [
+  const ops = [
     Prisma.hospitalInquiry.update({
       where: { id: inquiryId },
       data: {
-        status,
-        treatmentCostEstimate:
-          treatmentCostEstimate !== undefined && treatmentCostEstimate !== ""
-            ? treatmentCostEstimate
-            : undefined,
-        currency: currency || undefined,
+        status: "DECLINED",
         notes: notes !== undefined ? notes || null : undefined,
         respondedAt: new Date(),
       },
       include: { hospital: true },
     }),
-    Prisma.case.update({
-      where: { id: caseId },
-      data: { status: caseStatus },
-    }),
     caseEventOp({
       caseId,
       type: "INQUIRY_STATUS_CHANGED",
       fromStatus: "PENDING",
-      toStatus: status,
+      toStatus: "DECLINED",
       inquiryId,
       actorId: userId,
     }),
-    caseEventOp({
-      caseId,
-      type: "CASE_STATUS_CHANGED",
-      fromStatus: kase.status,
-      toStatus: caseStatus,
-      actorId: userId,
-    }),
   ];
-
-  if (status === "ACCEPTED" && !isAgencyCase(kase)) {
-    transactionOps.push(
-      Prisma.visaApplication.create({
-        data: { caseId, travelerType: "PATIENT" },
+  if (caseGoesDeclined) {
+    ops.push(
+      Prisma.case.update({ where: { id: caseId }, data: { status: "HOSPITAL_DECLINED" } }),
+      caseEventOp({
+        caseId,
+        type: "CASE_STATUS_CHANGED",
+        fromStatus: kase.status,
+        toStatus: "HOSPITAL_DECLINED",
+        actorId: userId,
       }),
     );
-    if (kase.attendant) {
-      transactionOps.push(
-        Prisma.visaApplication.create({
-          data: { caseId, travelerType: "ATTENDANT" },
-        }),
-      );
-    }
   }
 
-  const [updatedInquiry] = await Prisma.$transaction(transactionOps);
-
+  const [updatedInquiry] = await Prisma.$transaction(ops);
   return updatedInquiry;
 };
 

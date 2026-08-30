@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import Prisma from "../../Src/Config/Prisma/db.js";
 import { AppError } from "../../Src/Utils/ErrorHandler/errorHandler.js";
-import { sendInquiry, recordChosenResponse } from "../../Src/Services/Cases/casesService.js";
+import { sendInquiry, recordChosenResponse, respondToInquiry } from "../../Src/Services/Cases/casesService.js";
 import { createUser, createHospital, createCase, chosenResponseFiles } from "../helpers/factories.js";
 import { createCase as createCaseRow } from "../helpers/factories.js";
 
@@ -85,5 +85,43 @@ describe("recordChosenResponse", () => {
     await expect(
       recordChosenResponse(kase.id, i.id, { currency: "USD" }, chosenResponseFiles(), user.id),
     ).rejects.toThrow(/treatment cost/i);
+  });
+});
+
+describe("respondToInquiry — decline only", () => {
+  it("declines an inquiry without advancing the case while others are open", async () => {
+    const user = await createUser();
+    const kase = await createCase();
+    const h1 = await createHospital();
+    const h2 = await createHospital();
+    const i1 = await sendInquiry(kase.id, { hospitalId: h1.id }, user.id);
+    await sendInquiry(kase.id, { hospitalId: h2.id }, user.id);
+
+    await respondToInquiry(kase.id, i1.id, { notes: "too expensive" }, user.id);
+
+    const c = await Prisma.case.findUnique({ where: { id: kase.id } });
+    expect(c.status).toBe("HOSPITAL_MATCHING");
+    const declined = await Prisma.hospitalInquiry.findUnique({ where: { id: i1.id } });
+    expect(declined.status).toBe("DECLINED");
+  });
+
+  it("moves the case to HOSPITAL_DECLINED when the last open inquiry is declined", async () => {
+    const user = await createUser();
+    const kase = await createCase();
+    const h1 = await createHospital();
+    const i1 = await sendInquiry(kase.id, { hospitalId: h1.id }, user.id);
+    await respondToInquiry(kase.id, i1.id, {}, user.id);
+    const c = await Prisma.case.findUnique({ where: { id: kase.id } });
+    expect(c.status).toBe("HOSPITAL_DECLINED");
+  });
+
+  it("rejects an ACCEPTED status", async () => {
+    const user = await createUser();
+    const kase = await createCase();
+    const h1 = await createHospital();
+    const i1 = await sendInquiry(kase.id, { hospitalId: h1.id }, user.id);
+    await expect(
+      respondToInquiry(kase.id, i1.id, { status: "ACCEPTED" }, user.id),
+    ).rejects.toThrow(/use the record-response action/i);
   });
 });

@@ -2,16 +2,14 @@ import { describe, it, expect } from "vitest";
 import Prisma from "../../Src/Config/Prisma/db.js";
 import {
   createCase,
-  sendInquiry,
-  respondToInquiry,
   recordFeePayment,
 } from "../../Src/Services/Cases/casesService.js";
 import {
   createUser,
   createAccount,
-  createHospital,
   caseIntakeFiles,
   attachDocument,
+  recordChosenResponseFor,
 } from "../helpers/factories.js";
 
 const withAttendant = (overrides = {}) => ({
@@ -26,9 +24,7 @@ const withAttendant = (overrides = {}) => ({
 });
 
 const acceptAndGetPatientVisaApp = async (kaseId, user) => {
-  const hospital = await createHospital();
-  const inquiry = await sendInquiry(kaseId, { hospitalId: hospital.id }, user.id);
-  await respondToInquiry(kaseId, inquiry.id, { status: "ACCEPTED" }, user.id);
+  await recordChosenResponseFor(kaseId, { user });
   return Prisma.visaApplication.findFirstOrThrow({ where: { caseId: kaseId, travelerType: "PATIENT" } });
 };
 

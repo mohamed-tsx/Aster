@@ -4,7 +4,6 @@ import {
   createCase,
   getCaseById,
   sendInquiry,
-  respondToInquiry,
   cancelCase,
   recordFeePayment,
   markEmbassyVisited,
@@ -16,6 +15,7 @@ import {
   createPatient,
   createHospital,
   caseIntakeFiles,
+  recordChosenResponseFor,
 } from "../helpers/factories.js";
 import { createCase as createCaseRow } from "../helpers/factories.js";
 
@@ -55,20 +55,18 @@ describe("case status-change event logging", () => {
     expect(transition.actorId).toBe(user.id);
   });
 
-  it("logs INQUIRY_STATUS_CHANGED and CASE_STATUS_CHANGED when an inquiry is accepted", async () => {
+  it("logs HOSPITAL_CHOSEN and CASE_STATUS_CHANGED when a hospital is chosen", async () => {
     const user = await createUser();
     const patient = await createPatient();
-    const hospital = await createHospital();
     const kase = await createCase({ patientId: patient.id, reachOutType: "DIRECT" }, caseIntakeFiles(), user.id);
-    const inquiry = await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
 
-    await respondToInquiry(kase.id, inquiry.id, { status: "ACCEPTED" }, user.id);
+    await recordChosenResponseFor(kase.id, { user });
+    const chosen = await Prisma.hospitalInquiry.findFirst({ where: { caseId: kase.id, isChosen: true } });
 
     const events = await eventsFor(kase.id);
-    const inquiryEvent = events.find((e) => e.type === "INQUIRY_STATUS_CHANGED");
-    expect(inquiryEvent.fromStatus).toBe("PENDING");
-    expect(inquiryEvent.toStatus).toBe("ACCEPTED");
-    expect(inquiryEvent.inquiryId).toBe(inquiry.id);
+    const chosenEvent = events.find((e) => e.type === "HOSPITAL_CHOSEN");
+    expect(chosenEvent.toStatus).toBe("ACCEPTED");
+    expect(chosenEvent.inquiryId).toBe(chosen.id);
 
     const caseEvent = events.find(
       (e) => e.type === "CASE_STATUS_CHANGED" && e.toStatus === "HOSPITAL_ACCEPTED",
@@ -94,10 +92,8 @@ describe("case status-change event logging", () => {
     const user = await createUser();
     const account = await createAccount();
     const patient = await createPatient();
-    const hospital = await createHospital();
     const kase = await createCase({ patientId: patient.id, reachOutType: "DIRECT" }, caseIntakeFiles(), user.id);
-    const inquiry = await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
-    await respondToInquiry(kase.id, inquiry.id, { status: "ACCEPTED" }, user.id);
+    await recordChosenResponseFor(kase.id, { user });
     const visaApplication = await Prisma.visaApplication.findFirstOrThrow({ where: { caseId: kase.id } });
 
     await recordFeePayment(kase.id, visaApplication.id, { accountId: account.id, amount: 100 }, user.id);
@@ -118,10 +114,8 @@ describe("case status-change event logging", () => {
     const user = await createUser();
     const account = await createAccount();
     const patient = await createPatient();
-    const hospital = await createHospital();
     const kase = await createCase({ patientId: patient.id, reachOutType: "DIRECT" }, caseIntakeFiles(), user.id);
-    const inquiry = await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
-    await respondToInquiry(kase.id, inquiry.id, { status: "ACCEPTED" }, user.id);
+    await recordChosenResponseFor(kase.id, { user });
     const visaApplication = await Prisma.visaApplication.findFirstOrThrow({ where: { caseId: kase.id } });
     await recordFeePayment(kase.id, visaApplication.id, { accountId: account.id, amount: 100 }, user.id);
 

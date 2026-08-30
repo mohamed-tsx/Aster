@@ -1,18 +1,16 @@
 import { describe, it, expect } from "vitest";
 import Prisma from "../../Src/Config/Prisma/db.js";
 import {
-  sendInquiry,
-  respondToInquiry,
   recordFeePaymentByTraveler,
   markEmbassyVisited,
   createCase,
 } from "../../Src/Services/Cases/casesService.js";
 import {
   createUser,
-  createHospital,
   createPatient,
   createAccount,
   caseIntakeFiles,
+  recordChosenResponseFor,
 } from "../helpers/factories.js";
 import { createCase as createCaseRow } from "../helpers/factories.js";
 
@@ -25,11 +23,9 @@ const agencyCase = async (overrides = {}) => {
 describe("agency case: hospital acceptance does not auto-create visa applications", () => {
   it("creates no VisaApplication rows when an agency case's inquiry is accepted", async () => {
     const user = await createUser();
-    const hospital = await createHospital();
     const kase = await agencyCase();
 
-    const inquiry = await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
-    await respondToInquiry(kase.id, inquiry.id, { status: "ACCEPTED" }, user.id);
+    await recordChosenResponseFor(kase.id, { user });
 
     const visaApps = await Prisma.visaApplication.findMany({ where: { caseId: kase.id } });
     expect(visaApps).toHaveLength(0);
@@ -40,7 +36,6 @@ describe("agency case: hospital acceptance does not auto-create visa application
 
   it("creates no VisaApplication rows for an agency case that has an attendant", async () => {
     const user = await createUser();
-    const hospital = await createHospital();
     const kase = await agencyCase();
     await Prisma.attendant.create({
       data: {
@@ -55,8 +50,7 @@ describe("agency case: hospital acceptance does not auto-create visa application
       },
     });
 
-    const inquiry = await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
-    await respondToInquiry(kase.id, inquiry.id, { status: "ACCEPTED" }, user.id);
+    await recordChosenResponseFor(kase.id, { user });
 
     const visaApps = await Prisma.visaApplication.findMany({ where: { caseId: kase.id } });
     expect(visaApps).toHaveLength(0);
@@ -64,12 +58,10 @@ describe("agency case: hospital acceptance does not auto-create visa application
 
   it("still auto-creates visa apps for a DIRECT case (regression)", async () => {
     const user = await createUser();
-    const hospital = await createHospital();
     const patient = await createPatient();
     const kase = await createCaseRow({ patientId: patient.id, reachOutType: "DIRECT" });
 
-    const inquiry = await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
-    await respondToInquiry(kase.id, inquiry.id, { status: "ACCEPTED" }, user.id);
+    await recordChosenResponseFor(kase.id, { user });
 
     const visaApps = await Prisma.visaApplication.findMany({ where: { caseId: kase.id } });
     expect(visaApps).toHaveLength(1);
@@ -102,10 +94,8 @@ describe("agency case: by-traveler fee payment", () => {
   it("lazily creates the patient visa app and records the payment", async () => {
     const user = await createUser();
     const account = await createAccount();
-    const hospital = await createHospital();
     const kase = await agencyIntake(user);
-    const inquiry = await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
-    await respondToInquiry(kase.id, inquiry.id, { status: "ACCEPTED" }, user.id);
+    await recordChosenResponseFor(kase.id, { user });
 
     const visaApp = await recordFeePaymentByTraveler(
       kase.id, { travelerType: "PATIENT", accountId: account.id, amount: 100 }, user.id,
@@ -121,10 +111,8 @@ describe("agency case: by-traveler fee payment", () => {
   it("skips the attendant-passport gate for agency cases", async () => {
     const user = await createUser();
     const account = await createAccount();
-    const hospital = await createHospital();
     const kase = await agencyIntake(user, true);
-    const inquiry = await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
-    await respondToInquiry(kase.id, inquiry.id, { status: "ACCEPTED" }, user.id);
+    await recordChosenResponseFor(kase.id, { user });
 
     const visaApp = await recordFeePaymentByTraveler(
       kase.id, { travelerType: "PATIENT", accountId: account.id, amount: 100 }, user.id,
@@ -166,10 +154,8 @@ describe("agency case: by-traveler fee payment", () => {
   it("lazily creates the ATTENDANT visa app for an agency case with an attendant", async () => {
     const user = await createUser();
     const account = await createAccount();
-    const hospital = await createHospital();
     const kase = await agencyIntake(user, true);
-    const inquiry = await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
-    await respondToInquiry(kase.id, inquiry.id, { status: "ACCEPTED" }, user.id);
+    await recordChosenResponseFor(kase.id, { user });
 
     const visaApp = await recordFeePaymentByTraveler(
       kase.id, { travelerType: "ATTENDANT", accountId: account.id, amount: 100 }, user.id,
@@ -195,10 +181,8 @@ describe("agency case: by-traveler fee payment", () => {
 
   it("does not persist a stray PENDING visa app when the payment fails money validation", async () => {
     const user = await createUser();
-    const hospital = await createHospital();
     const kase = await agencyIntake(user);
-    const inquiry = await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
-    await respondToInquiry(kase.id, inquiry.id, { status: "ACCEPTED" }, user.id);
+    await recordChosenResponseFor(kase.id, { user });
 
     await expect(
       recordFeePaymentByTraveler(
@@ -214,10 +198,8 @@ describe("agency case: by-traveler fee payment", () => {
 describe("agency case: visa step ordering", () => {
   it("rejects markEmbassyVisited while the PATIENT visa app is still PENDING (fee unpaid)", async () => {
     const user = await createUser();
-    const hospital = await createHospital();
     const kase = await agencyCase();
-    const inquiry = await sendInquiry(kase.id, { hospitalId: hospital.id }, user.id);
-    await respondToInquiry(kase.id, inquiry.id, { status: "ACCEPTED" }, user.id);
+    await recordChosenResponseFor(kase.id, { user });
 
     const visaApp = await Prisma.visaApplication.create({
       data: { caseId: kase.id, travelerType: "PATIENT" },
