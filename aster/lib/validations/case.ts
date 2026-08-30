@@ -40,8 +40,6 @@ const PATIENT_REQUIRED: (keyof CaseFormValues)[] = [
   "patientGender",
   "patientDateOfBirth",
   "patientNationality",
-  "patientPassportNumber",
-  "patientPassportExpiry",
   "patientPhone",
 ];
 
@@ -51,8 +49,6 @@ const ATTENDANT_REQUIRED: (keyof CaseFormValues)[] = [
   "attendantGender",
   "attendantDateOfBirth",
   "attendantNationality",
-  "attendantPassportNumber",
-  "attendantPassportExpiry",
   "attendantPhone",
   "attendantRelationToPatient",
 ];
@@ -116,53 +112,67 @@ export type SendInquiryFormValues = z.infer<typeof sendInquirySchema>;
 /**
  * Backend contract: patient fields are bare (`firstName`, `lastName`, ...); attendant
  * fields are sent with an `attendant` prefix (`attendantFirstName`, ...) since both
- * sit flat in the same JSON body — see `Server/Src/Services/Cases/casesService.js`'s
- * `ATTENDANT_FIELD_MAP`.
+ * sit flat in the same multipart body — see `Server/Src/Services/Cases/casesService.js`'s
+ * `ATTENDANT_FIELD_MAP`. Case creation is multipart/form-data so the passport and
+ * case-document file uploads ride along with the scalar fields; `hasAttendant` is sent
+ * as the string `"true"`/`"false"` (the backend coerces it).
  */
-export function buildCaseCreatePayload(
+export function buildCaseCreateFormData(
   values: CaseFormValues,
   selectedPatientId: string | null,
-): Record<string, unknown> {
-  const payload: Record<string, unknown> = {
-    reachOutType: values.reachOutType,
-    agencyId: values.reachOutType === "AGENCY" ? values.agencyId : undefined,
-    assignedToId: values.assignedToId || undefined,
-    notes: values.notes?.trim() || undefined,
-    hasAttendant: values.hasAttendant,
+  files: {
+    patientPassport: File | null;
+    caseDocument: File | null;
+    attendantPassport: File | null;
+  },
+): FormData {
+  const fd = new FormData();
+  const set = (k: string, v: unknown) => {
+    if (v !== undefined && v !== null && v !== "") fd.append(k, String(v));
   };
 
+  set("reachOutType", values.reachOutType);
+  if (values.reachOutType === "AGENCY") set("agencyId", values.agencyId);
+  set("assignedToId", values.assignedToId);
+  set("notes", values.notes?.trim());
+  fd.append("hasAttendant", String(values.hasAttendant));
+
   if (selectedPatientId) {
-    payload.patientId = selectedPatientId;
+    set("patientId", selectedPatientId);
   } else {
-    payload.firstName = values.patientFirstName;
-    payload.lastName = values.patientLastName;
-    payload.gender = values.patientGender;
-    payload.dateOfBirth = values.patientDateOfBirth;
-    payload.nationality = values.patientNationality;
-    payload.passportNumber = values.patientPassportNumber;
-    payload.passportExpiry = values.patientPassportExpiry;
-    payload.phone = values.patientPhone;
-    payload.email = values.patientEmail?.trim() || undefined;
-    payload.address = values.patientAddress?.trim() || undefined;
+    set("firstName", values.patientFirstName);
+    set("lastName", values.patientLastName);
+    set("gender", values.patientGender);
+    set("dateOfBirth", values.patientDateOfBirth);
+    set("nationality", values.patientNationality);
+    set("passportNumber", values.patientPassportNumber);
+    set("passportExpiry", values.patientPassportExpiry);
+    set("phone", values.patientPhone);
+    set("email", values.patientEmail?.trim());
+    set("address", values.patientAddress?.trim());
   }
 
   if (values.hasAttendant) {
-    payload.attendantFirstName = values.attendantFirstName;
-    payload.attendantLastName = values.attendantLastName;
-    payload.attendantGender = values.attendantGender;
-    payload.attendantDateOfBirth = values.attendantDateOfBirth;
-    payload.attendantNationality = values.attendantNationality;
-    payload.attendantPassportNumber = values.attendantPassportNumber;
-    payload.attendantPassportExpiry = values.attendantPassportExpiry;
-    payload.attendantPhone = values.attendantPhone;
-    payload.attendantRelationToPatient = values.attendantRelationToPatient;
+    set("attendantFirstName", values.attendantFirstName);
+    set("attendantLastName", values.attendantLastName);
+    set("attendantGender", values.attendantGender);
+    set("attendantDateOfBirth", values.attendantDateOfBirth);
+    set("attendantNationality", values.attendantNationality);
+    set("attendantPassportNumber", values.attendantPassportNumber);
+    set("attendantPassportExpiry", values.attendantPassportExpiry);
+    set("attendantPhone", values.attendantPhone);
+    set("attendantRelationToPatient", values.attendantRelationToPatient);
   }
 
-  return payload;
+  if (files.patientPassport) fd.append("patientPassport", files.patientPassport);
+  if (files.caseDocument) fd.append("caseDocument", files.caseDocument);
+  if (files.attendantPassport) fd.append("attendantPassport", files.attendantPassport);
+
+  return fd;
 }
 
 export function buildCaseUpdatePayload(values: CaseFormValues): Record<string, unknown> {
-  // Unlike buildCaseCreatePayload, a blanked optional field here must be sent as an
+  // Unlike buildCaseCreateFormData, a blanked optional field here must be sent as an
   // explicit "" rather than omitted: `undefined` keys are dropped by
   // JSON.stringify, and the backend's updateCase treats a *missing* key as "leave
   // this field alone," not "clear it." Sending "" is what actually clears

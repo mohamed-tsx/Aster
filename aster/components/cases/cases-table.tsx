@@ -100,7 +100,7 @@ export function CasesTable({ cases, loading }: CasesTableProps) {
               <TableCell>
                 {kase.patient.firstName} {kase.patient.lastName}
                 <p className="text-xs text-muted-foreground">
-                  {kase.patient.passportNumber}
+                  {kase.patient.passportNumber ?? "—"}
                 </p>
               </TableCell>
               <TableCell>

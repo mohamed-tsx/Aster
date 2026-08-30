@@ -12,7 +12,7 @@ export default function NewCasePage() {
   const allowed = usePermissionGuard("CREATE_CASES");
   if (!allowed) return null;
 
-  const handleCreate = async (payload: Record<string, unknown>) => {
+  const handleCreate = async (payload: FormData) => {
     try {
       const kase = await createCase(payload);
       toast.success("Case created.");

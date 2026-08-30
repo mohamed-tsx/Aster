@@ -7,8 +7,8 @@ export type Patient = {
   gender: Gender;
   dateOfBirth: string;
   nationality: string;
-  passportNumber: string;
-  passportExpiry: string;
+  passportNumber: string | null;
+  passportExpiry: string | null;
   phone: string;
   email: string | null;
   address: string | null;
@@ -20,4 +20,7 @@ export type Patient = {
 // which selects only the fields the search-and-pick UI actually renders — not the
 // full Patient record (PHI like DOB/phone/email/address/passport-expiry is never
 // sent for a search-by-passport-fragment query).
-export type PatientSummary = Pick<Patient, "id" | "firstName" | "lastName" | "passportNumber">;
+export type PatientSummary = Pick<Patient, "id" | "firstName" | "lastName"> & {
+  passportNumber: string | null;
+  hasPassportOnFile: boolean;
+};

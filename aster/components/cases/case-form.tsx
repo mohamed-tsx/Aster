@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FileField } from "@/components/ui/file-field";
 import { PatientSearch } from "@/components/cases/patient-search";
 import { PatientFields } from "@/components/cases/patient-fields";
 import { AttendantFields } from "@/components/cases/attendant-fields";
@@ -29,7 +30,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import {
   caseFormSchema,
   validateCaseForm,
-  buildCaseCreatePayload,
+  buildCaseCreateFormData,
   buildCaseUpdatePayload,
   type CaseFormValues,
 } from "@/lib/validations/case";
@@ -73,8 +74,10 @@ function caseToFormValues(kase: Case): CaseFormValues {
     patientGender: kase.patient.gender,
     patientDateOfBirth: kase.patient.dateOfBirth.slice(0, 10),
     patientNationality: kase.patient.nationality,
-    patientPassportNumber: kase.patient.passportNumber,
-    patientPassportExpiry: kase.patient.passportExpiry.slice(0, 10),
+    patientPassportNumber: kase.patient.passportNumber ?? "",
+    patientPassportExpiry: kase.patient.passportExpiry
+      ? kase.patient.passportExpiry.slice(0, 10)
+      : "",
     patientPhone: kase.patient.phone,
     patientEmail: kase.patient.email ?? "",
     patientAddress: kase.patient.address ?? "",
@@ -96,7 +99,7 @@ function caseToFormValues(kase: Case): CaseFormValues {
 }
 
 type CaseFormProps =
-  | { mode: "create"; onSubmit: (payload: Record<string, unknown>) => Promise<void> }
+  | { mode: "create"; onSubmit: (payload: FormData) => Promise<void> }
   | {
       mode: "edit";
       initialCase: Case;
@@ -111,14 +114,21 @@ export function CaseForm(props: CaseFormProps) {
     defaultValues: mode === "edit" ? caseToFormValues(props.initialCase) : EMPTY_VALUES,
   });
   const [selectedPatient, setSelectedPatient] = useState<PatientSummary | null>(
-    mode === "edit" ? props.initialCase.patient : null,
+    mode === "edit"
+      ? { ...props.initialCase.patient, hasPassportOnFile: false }
+      : null,
   );
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [assignableUsers, setAssignableUsers] = useState<
     { id: string; firstName: string; lastName: string }[]
   >([]);
+  const [patientPassport, setPatientPassport] = useState<File | null>(null);
+  const [caseDocument, setCaseDocument] = useState<File | null>(null);
+  const [attendantPassport, setAttendantPassport] = useState<File | null>(null);
 
   const reachOutType = form.watch("reachOutType");
+  const showAttendant = form.watch("hasAttendant");
+  const patientHasPassportOnFile = selectedPatient?.hasPassportOnFile ?? false;
 
   useEffect(() => {
     listAgencies()
@@ -156,12 +166,29 @@ export function CaseForm(props: CaseFormProps) {
       return;
     }
 
+    if (mode === "create") {
+      if (!patientHasPassportOnFile && !patientPassport) {
+        toast.error("Validation error", "Patient passport is required");
+        return;
+      }
+      if (!caseDocument) {
+        toast.error("Validation error", "Case document is required");
+        return;
+      }
+    }
+
     const payload =
       mode === "create"
-        ? buildCaseCreatePayload(parsed.data, selectedPatient?.id ?? null)
+        ? buildCaseCreateFormData(parsed.data, selectedPatient?.id ?? null, {
+            patientPassport,
+            caseDocument,
+            // Ignore a stale attendant passport if the toggle was turned back off
+            // after a file was picked — otherwise the backend gets an orphan file.
+            attendantPassport: showAttendant ? attendantPassport : null,
+          })
         : buildCaseUpdatePayload(parsed.data);
 
-    await onSubmit(payload);
+    await onSubmit(payload as FormData & Record<string, unknown>);
   });
 
   return (
@@ -174,6 +201,44 @@ export function CaseForm(props: CaseFormProps) {
         {(mode === "edit" || !selectedPatient) && <PatientFields form={form} />}
 
         <AttendantFields form={form} />
+
+        {mode === "create" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Documents</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FileField
+                id="patientPassport"
+                label="Patient passport"
+                required={!patientHasPassportOnFile}
+                value={patientPassport}
+                onChange={setPatientPassport}
+                hint={
+                  patientHasPassportOnFile
+                    ? "On file from a previous case — upload only to replace."
+                    : undefined
+                }
+              />
+              <FileField
+                id="caseDocument"
+                label="Case document"
+                required
+                value={caseDocument}
+                onChange={setCaseDocument}
+                hint="A document describing the patient's medical situation."
+              />
+              {showAttendant && (
+                <FileField
+                  id="attendantPassport"
+                  label="Attendant passport (optional now — required before visa processing)"
+                  value={attendantPassport}
+                  onChange={setAttendantPassport}
+                />
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

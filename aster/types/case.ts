@@ -12,8 +12,8 @@ export type Attendant = {
   gender: Gender;
   dateOfBirth: string;
   nationality: string;
-  passportNumber: string;
-  passportExpiry: string;
+  passportNumber: string | null;
+  passportExpiry: string | null;
   phone: string;
   relationToPatient: string;
 };
@@ -52,7 +52,7 @@ export type CaseListItem = {
   status: CaseStatus;
   createdAt: string;
   updatedAt: string;
-  patient: { id: string; firstName: string; lastName: string; passportNumber: string };
+  patient: { id: string; firstName: string; lastName: string; passportNumber: string | null };
   agency: { id: string; name: string } | null;
   assignedTo: CaseAssignee | null;
 };

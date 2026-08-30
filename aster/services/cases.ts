@@ -52,8 +52,7 @@ export async function searchPatients(passportNumber: string): Promise<PatientSum
   return unwrap(response).patients;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function createCase(payload: Record<string, any>): Promise<Case> {
+export async function createCase(payload: FormData): Promise<Case> {
   const response = await api.post<ApiSuccess<Case>>("/cases", payload);
   return unwrap(response);
 }

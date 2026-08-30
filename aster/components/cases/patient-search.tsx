@@ -44,7 +44,10 @@ export function PatientSearch({ selectedPatient, onSelect }: PatientSearchProps)
               {selectedPatient.firstName} {selectedPatient.lastName}
             </p>
             <p className="text-xs text-muted-foreground">
-              Passport {selectedPatient.passportNumber} · Reusing existing patient record
+              Passport {selectedPatient.passportNumber ?? "—"} · Reusing existing patient record
+              {selectedPatient.hasPassportOnFile
+                ? " · Passport on file"
+                : " · No passport on file"}
             </p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={() => onSelect(null)}>
@@ -95,7 +98,7 @@ export function PatientSearch({ selectedPatient, onSelect }: PatientSearchProps)
                   {patient.firstName} {patient.lastName}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {patient.passportNumber}
+                  {patient.passportNumber ?? "—"}
                 </span>
               </button>
             ))}

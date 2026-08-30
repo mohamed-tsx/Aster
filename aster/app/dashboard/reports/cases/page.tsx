@@ -16,7 +16,7 @@ const COLUMNS: ExportColumn<CaseListItem>[] = [
   { header: "Status", value: (c) => c.status },
   { header: "Source", value: (c) => (c.reachOutType === "AGENCY" ? c.agency?.name ?? "Agency" : "Direct") },
   { header: "Patient", value: (c) => `${c.patient.firstName} ${c.patient.lastName}` },
-  { header: "Passport #", value: (c) => c.patient.passportNumber },
+  { header: "Passport #", value: (c) => c.patient.passportNumber ?? "—" },
   {
     header: "Assigned to",
     value: (c) => (c.assignedTo ? `${c.assignedTo.firstName} ${c.assignedTo.lastName}` : ""),

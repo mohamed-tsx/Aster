@@ -17,6 +17,7 @@ import type { DocumentType } from "@/types/document";
 const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   PATIENT_PASSPORT: "Patient passport",
   ATTENDANT_PASSPORT: "Attendant passport",
+  CASE_DOCUMENT: "Case document",
   INVITATION_LETTER: "Invitation letter",
   VISA_COPY: "Visa copy",
   OTHER: "Other",

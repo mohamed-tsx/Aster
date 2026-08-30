@@ -72,7 +72,10 @@ export function CaseDetailView({ kase }: { kase: Case }) {
           <Field label="Date of birth" value={formatDate(kase.patient.dateOfBirth)} />
           <Field label="Nationality" value={kase.patient.nationality} />
           <Field label="Passport number" value={kase.patient.passportNumber} />
-          <Field label="Passport expiry" value={formatDate(kase.patient.passportExpiry)} />
+          <Field
+            label="Passport expiry"
+            value={kase.patient.passportExpiry ? formatDate(kase.patient.passportExpiry) : "—"}
+          />
           <Field label="Phone" value={kase.patient.phone} />
           <Field label="Email" value={kase.patient.email} />
           <Field label="Address" value={kase.patient.address} />
@@ -96,7 +99,11 @@ export function CaseDetailView({ kase }: { kase: Case }) {
             <Field label="Passport number" value={kase.attendant.passportNumber} />
             <Field
               label="Passport expiry"
-              value={formatDate(kase.attendant.passportExpiry)}
+              value={
+                kase.attendant.passportExpiry
+                  ? formatDate(kase.attendant.passportExpiry)
+                  : "—"
+              }
             />
             <Field label="Phone" value={kase.attendant.phone} />
           </CardContent>
