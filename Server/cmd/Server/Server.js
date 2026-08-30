@@ -24,6 +24,7 @@ import accountsRoutes from "../../Src/Routes/Accounts/accountsRoute.js";
 import expensesRoutes from "../../Src/Routes/Expenses/expensesRoute.js";
 import dashboardRoutes from "../../Src/Routes/Dashboard/dashboardRoute.js";
 import settingsRoutes from "../../Src/Routes/Settings/settingsRoute.js";
+import revenueRoutes from "../../Src/Routes/Revenue/revenueRoute.js";
 import Verify from "../../Src/Middlewares/Auth/Verify.js";
 import RequirePermission from "../../Src/Middlewares/Auth/RequirePermission.js";
 
@@ -122,6 +123,7 @@ Server.use("/api/v1/cases/:caseId/documents", documentsRoutes);
 Server.use("/api/v1/cases/:caseId/notes", caseNotesRoutes);
 Server.use("/api/v1/accounts", accountsRoutes);
 Server.use("/api/v1/expenses", expensesRoutes);
+Server.use("/api/v1/revenue", revenueRoutes);
 Server.use("/api/v1/dashboard", dashboardRoutes);
 Server.use("/api/v1/settings", settingsRoutes);
 
