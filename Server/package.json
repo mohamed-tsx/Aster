@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "dev": "nodemon cmd/Server/Server.js",
-    "seed:admin": "node cmd/Seed/adminSeed.js"
+    "seed:admin": "node cmd/Seed/adminSeed.js",
+    "seed:demo": "node cmd/Seed/demoSeed.js"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
