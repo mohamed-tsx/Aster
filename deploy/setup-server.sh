@@ -10,9 +10,9 @@
 # Safe to re-run: each step checks whether it already applied.
 set -euo pipefail
 
-APP_DOMAIN="${APP_DOMAIN:?Set APP_DOMAIN, e.g. app.example.com}"
-API_DOMAIN="${API_DOMAIN:?Set API_DOMAIN, e.g. api.example.com}"
-REPO_URL="${REPO_URL:?Set REPO_URL, e.g. git@github.com:you/aster.git}"
+APP_DOMAIN="${APP_DOMAIN:?Set APP_DOMAIN, e.g. aster.withmohamed.com}"
+API_DOMAIN="${API_DOMAIN:?Set API_DOMAIN, e.g. api.withmohamed.com}"
+REPO_URL="${REPO_URL:?Set REPO_URL, e.g. git@github.com:mohamed-tsx/aster.git}"
 APP_DIR="${APP_DIR:-/var/www/aster}"
 DB_NAME="${DB_NAME:-aster}"
 DB_USER="${DB_USER:-aster}"
