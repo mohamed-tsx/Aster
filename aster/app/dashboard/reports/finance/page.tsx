@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Download, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/users/page-header";
+import { ExportMenu } from "@/components/export/export-menu";
+import { PreviewTable } from "@/components/export/preview-table";
 import { usePermissionGuard } from "@/hooks/use-permission-guard";
 import { useToast } from "@/hooks/use-toast";
 import { listAccounts, getErrorMessage } from "@/services/accounts";
-import { exportToPdf, type ExportColumn } from "@/lib/export";
+import { type ExportColumn } from "@/lib/export";
 import type { Account } from "@/types/account";
 
 type BalanceRow = { name: string; type: string; currency: string; amount: number };
@@ -33,50 +33,49 @@ function toRows(accounts: Account[]): BalanceRow[] {
 export default function FinanceSummaryReportPage() {
   const allowed = usePermissionGuard("VIEW_FINANCE");
   const toast = useToast();
-  const [exporting, setExporting] = useState(false);
+  const [rows, setRows] = useState<BalanceRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchPreview = useCallback(async () => {
+    setLoading(true);
+    try {
+      setRows(toRows(await listAccounts()));
+    } catch (error) {
+      toast.error("Failed to load account balances", getErrorMessage(error));
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchPreview();
+  }, [fetchPreview]);
 
   if (!allowed) return null;
-
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const accounts = await listAccounts();
-      const rows = toRows(accounts);
-
-      if (rows.length === 0) {
-        toast.info("Nothing to export", "No non-zero account balances.");
-        return;
-      }
-
-      await exportToPdf(
-        `finance-summary-${new Date().toISOString().slice(0, 10)}`,
-        "Finance Summary",
-        rows,
-        COLUMNS,
-      );
-      toast.success("Finance summary exported");
-    } catch (error) {
-      toast.error("Export failed", getErrorMessage(error));
-    } finally {
-      setExporting(false);
-    }
-  };
 
   return (
     <div className="mx-auto max-w-full space-y-6">
       <PageHeader
         title="Finance summary report"
-        description="Export a PDF of current account balances."
+        description="Current balance of every account, ready to preview and export."
         actions={
-          <Button onClick={handleExport} disabled={exporting}>
-            {exporting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="mr-2 h-4 w-4" />
-            )}
-            Export to PDF
-          </Button>
+          <ExportMenu
+            filename="finance-summary"
+            pdfTitle="Finance Summary"
+            columns={COLUMNS}
+            fetchRows={async () => toRows(await listAccounts())}
+          />
         }
+      />
+
+      <PreviewTable
+        columns={COLUMNS}
+        rows={rows}
+        loading={loading}
+        rowKey={(r) => `${r.name}-${r.currency}`}
+        emptyMessage="No non-zero account balances."
       />
     </div>
   );

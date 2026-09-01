@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { Download, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/users/page-header";
 import { CaseFilters, type CaseFiltersValue } from "@/components/cases/case-filters";
+import { ExportMenu } from "@/components/export/export-menu";
+import { PreviewTable } from "@/components/export/preview-table";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { usePermissionGuard } from "@/hooks/use-permission-guard";
 import { useToast } from "@/hooks/use-toast";
 import { listCases, getErrorMessage } from "@/services/cases";
-import { exportToExcel, fetchAllPages, type ExportColumn } from "@/lib/export";
+import { fetchAllPages, type ExportColumn } from "@/lib/export";
 import type { CaseListItem } from "@/types/case";
 
 const COLUMNS: ExportColumn<CaseListItem>[] = [
@@ -33,56 +35,90 @@ export default function CaseListReportPage() {
     assignedToId: "",
     q: "",
   });
-  const [exporting, setExporting] = useState(false);
+  const { page, limit, setPage, setLimit, resetPage } = usePagination();
+  const [rows, setRows] = useState<CaseListItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const params = useCallback(
+    () => ({
+      status: filters.status || undefined,
+      reachOutType: filters.reachOutType || undefined,
+      assignedToId: filters.assignedToId || undefined,
+      q: filters.q || undefined,
+    }),
+    [filters],
+  );
+
+  const fetchPreview = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await listCases({ page, limit, ...params() });
+      setRows(result.cases);
+      setTotal(result.total);
+    } catch (error) {
+      toast.error("Failed to load cases", getErrorMessage(error));
+      setRows([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit, params]);
+
+  useEffect(() => {
+    fetchPreview();
+  }, [fetchPreview]);
 
   if (!allowed) return null;
 
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const cases = await fetchAllPages((page, limit) =>
-        listCases({
-          page,
-          limit,
-          status: filters.status || undefined,
-          reachOutType: filters.reachOutType || undefined,
-          assignedToId: filters.assignedToId || undefined,
-          q: filters.q || undefined,
-        }).then((result) => ({ items: result.cases, total: result.total })),
-      );
-
-      if (cases.length === 0) {
-        toast.info("Nothing to export", "No cases match the current filters.");
-        return;
-      }
-
-      exportToExcel(`case-list-${new Date().toISOString().slice(0, 10)}`, cases, COLUMNS);
-      toast.success(`Exported ${cases.length} case${cases.length === 1 ? "" : "s"}`);
-    } catch (error) {
-      toast.error("Export failed", getErrorMessage(error));
-    } finally {
-      setExporting(false);
-    }
+  const handleFiltersChange = (next: CaseFiltersValue) => {
+    setFilters(next);
+    resetPage();
   };
+
+  const fetchAllRows = () =>
+    fetchAllPages((p, l) =>
+      listCases({ page: p, limit: l, ...params() }).then((result) => ({
+        items: result.cases,
+        total: result.total,
+      })),
+    );
 
   return (
     <div className="mx-auto max-w-full space-y-6">
       <PageHeader
         title="Case list report"
-        description="Export cases matching the filters below to Excel."
+        description="Filter, preview, and export the case list to Excel or PDF."
         actions={
-          <Button onClick={handleExport} disabled={exporting}>
-            {exporting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="mr-2 h-4 w-4" />
-            )}
-            Export to Excel
-          </Button>
+          <ExportMenu
+            filename="case-list"
+            pdfTitle="Case List"
+            columns={COLUMNS}
+            fetchRows={fetchAllRows}
+          />
         }
       />
 
-      <CaseFilters value={filters} onChange={setFilters} />
+      <CaseFilters value={filters} onChange={handleFiltersChange} />
+
+      <PreviewTable
+        columns={COLUMNS}
+        rows={rows}
+        loading={loading}
+        rowKey={(c) => c.id}
+        caption={loading ? undefined : `${total} case${total === 1 ? "" : "s"} match — showing page ${page}`}
+      />
+
+      <ListPagination
+        page={page}
+        totalPages={Math.max(1, Math.ceil(total / limit))}
+        total={total}
+        limit={limit}
+        onPageChange={setPage}
+        onLimitChange={setLimit}
+        itemLabel="cases"
+      />
     </div>
   );
 }

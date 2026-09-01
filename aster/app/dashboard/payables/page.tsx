@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/users/page-header";
 import { PayablesTable } from "@/components/payables/payables-table";
 import { PayableFormDialog } from "@/components/payables/payable-form-dialog";
 import { SettlePayableDialog } from "@/components/payables/settle-payable-dialog";
+import { ExportMenu } from "@/components/export/export-menu";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { usePagination } from "@/hooks/use-pagination";
 import { usePermissionGuard } from "@/hooks/use-permission-guard";
@@ -21,9 +22,20 @@ import { useRBAC } from "@/hooks/useRBAC";
 import { useToast } from "@/hooks/use-toast";
 import { listPayables, createPayable, getErrorMessage } from "@/services/payables";
 import type { CreatePayablePayload } from "@/services/payables";
+import { fetchAllPages, type ExportColumn } from "@/lib/export";
 import type { Payable, PayableStatus } from "@/types/payable";
 
 const ALL = "__all__";
+
+const COLUMNS: ExportColumn<Payable>[] = [
+  { header: "Payee", value: (p) => p.payeeName },
+  { header: "Amount", value: (p) => `${p.amount} ${p.currency}` },
+  { header: "Reason", value: (p) => p.reason },
+  { header: "Case", value: (p) => p.case?.caseNumber ?? "—" },
+  { header: "Raised", value: (p) => new Date(p.raisedOn).toISOString().slice(0, 10) },
+  { header: "Status", value: (p) => (p.status === "SETTLED" ? "Settled" : "Outstanding") },
+  { header: "Settled on", value: (p) => (p.settledOn ? new Date(p.settledOn).toISOString().slice(0, 10) : "—") },
+];
 
 export default function PayablesPage() {
   const allowed = usePermissionGuard("VIEW_FINANCE");
@@ -58,6 +70,14 @@ export default function PayablesPage() {
 
   if (!allowed) return null;
 
+  const fetchAllRows = () =>
+    fetchAllPages((p, l) =>
+      listPayables({ page: p, limit: l, status: status || undefined }).then((result) => ({
+        items: result.payables,
+        total: result.total,
+      })),
+    );
+
   const handleStatusChange = (value: string) => {
     setStatus(value === ALL ? "" : (value as PayableStatus));
     resetPage();
@@ -85,6 +105,12 @@ export default function PayablesPage() {
             <Button variant="outline" size="icon" onClick={fetchPayables} aria-label="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
+            <ExportMenu
+              filename="payables"
+              pdfTitle="Payables"
+              columns={COLUMNS}
+              fetchRows={fetchAllRows}
+            />
             {hasPermission("MANAGE_PAYABLES") && (
               <Button onClick={() => setDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/users/page-header";
 import { RevenueTable } from "@/components/revenue/revenue-table";
 import { RevenueFormDialog } from "@/components/revenue/revenue-form-dialog";
+import { ExportMenu } from "@/components/export/export-menu";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { usePagination } from "@/hooks/use-pagination";
 import { usePermissionGuard } from "@/hooks/use-permission-guard";
@@ -13,7 +14,23 @@ import { useRBAC } from "@/hooks/useRBAC";
 import { useToast } from "@/hooks/use-toast";
 import { listRevenue, createRevenue, getErrorMessage } from "@/services/revenue";
 import type { RevenueFormValues } from "@/lib/validations/revenue";
+import { fetchAllPages, type ExportColumn } from "@/lib/export";
 import type { Revenue } from "@/types/revenue";
+
+const CATEGORY_LABEL: Record<string, string> = {
+  HOSPITAL_REFERRAL_COMMISSION: "Hospital referral commission",
+  OTHER_INCOME: "Other income",
+};
+
+const COLUMNS: ExportColumn<Revenue>[] = [
+  { header: "Date", value: (r) => new Date(r.receivedOn).toISOString().slice(0, 10) },
+  { header: "Category", value: (r) => CATEGORY_LABEL[r.category] ?? r.category },
+  { header: "Amount", value: (r) => `${r.amount} ${r.currency}` },
+  { header: "Account", value: (r) => r.account.name },
+  { header: "Case", value: (r) => r.case?.caseNumber ?? "—" },
+  { header: "Recorded by", value: (r) => `${r.recordedBy.firstName} ${r.recordedBy.lastName}` },
+  { header: "Description", value: (r) => r.description ?? "—" },
+];
 
 export default function RevenuePage() {
   const allowed = usePermissionGuard("VIEW_FINANCE");
@@ -46,6 +63,14 @@ export default function RevenuePage() {
 
   if (!allowed) return null;
 
+  const fetchAllRows = () =>
+    fetchAllPages((p, l) =>
+      listRevenue({ page: p, limit: l }).then((result) => ({
+        items: result.revenue,
+        total: result.total,
+      })),
+    );
+
   const handleSubmit = async (values: RevenueFormValues) => {
     try {
       await createRevenue(values);
@@ -68,6 +93,12 @@ export default function RevenuePage() {
             <Button variant="outline" size="icon" onClick={fetchRevenue} aria-label="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
+            <ExportMenu
+              filename="revenue"
+              pdfTitle="Revenue"
+              columns={COLUMNS}
+              fetchRows={fetchAllRows}
+            />
             {hasPermission("MANAGE_REVENUE") && (
               <Button onClick={() => setDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />

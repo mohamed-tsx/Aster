@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Download, FileText, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/users/page-header";
 import {
@@ -10,12 +10,13 @@ import {
   CREDIT_TYPES,
   describe,
 } from "@/components/accounts/account-transactions-table";
+import { ExportMenu } from "@/components/export/export-menu";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { usePagination } from "@/hooks/use-pagination";
 import { usePermissionGuard } from "@/hooks/use-permission-guard";
 import { useToast } from "@/hooks/use-toast";
 import { listAllAccountTransactions, getErrorMessage } from "@/services/accounts";
-import { exportToExcel, exportToPdf, fetchAllPages, type ExportColumn } from "@/lib/export";
+import { fetchAllPages, type ExportColumn } from "@/lib/export";
 import type { AccountTransaction } from "@/types/account";
 
 function formatDate(iso: string) {
@@ -39,7 +40,6 @@ export default function AllTransactionsPage() {
   const toast = useToast();
   const [transactions, setTransactions] = useState<AccountTransaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [exporting, setExporting] = useState<"excel" | "pdf" | null>(null);
   const { page, limit, setPage, setLimit } = usePagination();
   const [total, setTotal] = useState(0);
 
@@ -72,45 +72,6 @@ export default function AllTransactionsPage() {
       })),
     );
 
-  const handleExportExcel = async () => {
-    setExporting("excel");
-    try {
-      const all = await fetchAllForExport();
-      if (all.length === 0) {
-        toast.info("Nothing to export", "No transactions recorded yet.");
-        return;
-      }
-      exportToExcel(`all-transactions-${new Date().toISOString().slice(0, 10)}`, all, COLUMNS);
-      toast.success(`Exported ${all.length} transaction${all.length === 1 ? "" : "s"}`);
-    } catch (error) {
-      toast.error("Export failed", getErrorMessage(error));
-    } finally {
-      setExporting(null);
-    }
-  };
-
-  const handleExportPdf = async () => {
-    setExporting("pdf");
-    try {
-      const all = await fetchAllForExport();
-      if (all.length === 0) {
-        toast.info("Nothing to export", "No transactions recorded yet.");
-        return;
-      }
-      await exportToPdf(
-        `all-transactions-${new Date().toISOString().slice(0, 10)}`,
-        "All Transactions",
-        all,
-        COLUMNS,
-      );
-      toast.success(`Exported ${all.length} transaction${all.length === 1 ? "" : "s"}`);
-    } catch (error) {
-      toast.error("Export failed", getErrorMessage(error));
-    } finally {
-      setExporting(null);
-    }
-  };
-
   return (
     <div className="mx-auto max-w-full space-y-6">
       <PageHeader
@@ -121,14 +82,12 @@ export default function AllTransactionsPage() {
             <Button variant="outline" size="icon" onClick={fetchTransactions} aria-label="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
-            <Button variant="outline" onClick={handleExportExcel} disabled={exporting !== null}>
-              <Download className="mr-2 h-4 w-4" />
-              {exporting === "excel" ? "Exporting..." : "Export to Excel"}
-            </Button>
-            <Button onClick={handleExportPdf} disabled={exporting !== null}>
-              <FileText className="mr-2 h-4 w-4" />
-              {exporting === "pdf" ? "Exporting..." : "Export to PDF"}
-            </Button>
+            <ExportMenu
+              filename="all-transactions"
+              pdfTitle="All Transactions"
+              columns={COLUMNS}
+              fetchRows={fetchAllForExport}
+            />
           </>
         }
       />

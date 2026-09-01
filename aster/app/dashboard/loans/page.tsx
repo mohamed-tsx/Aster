@@ -11,8 +11,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/users/page-header";
-import { LoansTable } from "@/components/loans/loans-table";
+import { LoansTable, INTEREST_METHOD_LABELS } from "@/components/loans/loans-table";
 import { LoanFormDialog } from "@/components/loans/loan-form-dialog";
+import { ExportMenu } from "@/components/export/export-menu";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { usePagination } from "@/hooks/use-pagination";
 import { usePermissionGuard } from "@/hooks/use-permission-guard";
@@ -20,9 +21,23 @@ import { useRBAC } from "@/hooks/useRBAC";
 import { useToast } from "@/hooks/use-toast";
 import { listLoans, createLoan, getErrorMessage } from "@/services/loans";
 import type { CreateLoanPayload } from "@/services/loans";
+import { fetchAllPages, type ExportColumn } from "@/lib/export";
 import type { Loan, LoanStatus } from "@/types/loan";
 
 const ALL = "__all__";
+
+const day = (iso: string) => new Date(iso).toISOString().slice(0, 10);
+
+const COLUMNS: ExportColumn<Loan>[] = [
+  { header: "Lender", value: (l) => l.lenderName },
+  { header: "Principal", value: (l) => `${l.principal} ${l.currency}` },
+  { header: "Rate", value: (l) => `${l.interestRatePct}% · ${INTEREST_METHOD_LABELS[l.interestMethod]}` },
+  { header: "Outstanding", value: (l) => `${l.projection.outstanding.toFixed(2)} ${l.currency}` },
+  { header: "Disbursed", value: (l) => day(l.disbursedOn) },
+  { header: "Due", value: (l) => day(l.dueOn) },
+  { header: "Term (months)", value: (l) => l.termMonths },
+  { header: "Status", value: (l) => (l.status === "SETTLED" ? "Settled" : "Active") },
+];
 
 export default function LoansPage() {
   const allowed = usePermissionGuard("VIEW_FINANCE");
@@ -56,6 +71,14 @@ export default function LoansPage() {
 
   if (!allowed) return null;
 
+  const fetchAllRows = () =>
+    fetchAllPages((p, l) =>
+      listLoans({ page: p, limit: l, status: status || undefined }).then((result) => ({
+        items: result.loans,
+        total: result.total,
+      })),
+    );
+
   const handleStatusChange = (value: string) => {
     setStatus(value === ALL ? "" : (value as LoanStatus));
     resetPage();
@@ -83,6 +106,12 @@ export default function LoansPage() {
             <Button variant="outline" size="icon" onClick={fetchLoans} aria-label="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
+            <ExportMenu
+              filename="loans"
+              pdfTitle="Loans"
+              columns={COLUMNS}
+              fetchRows={fetchAllRows}
+            />
             {hasPermission("MANAGE_LOANS") && (
               <Button onClick={() => setDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />

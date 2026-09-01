@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/users/page-header";
 import { ExpensesTable } from "@/components/expenses/expenses-table";
 import { ExpenseFormDialog } from "@/components/expenses/expense-form-dialog";
+import { ExportMenu } from "@/components/export/export-menu";
 import { ListPagination } from "@/components/pagination/list-pagination";
 import { usePagination } from "@/hooks/use-pagination";
 import { usePermissionGuard } from "@/hooks/use-permission-guard";
@@ -13,7 +14,17 @@ import { useRBAC } from "@/hooks/useRBAC";
 import { useToast } from "@/hooks/use-toast";
 import { listExpenses, createExpense, getErrorMessage } from "@/services/expenses";
 import type { ExpenseFormValues } from "@/lib/validations/expense";
+import { fetchAllPages, type ExportColumn } from "@/lib/export";
 import type { Expense } from "@/types/expense";
+
+const COLUMNS: ExportColumn<Expense>[] = [
+  { header: "Category", value: (e) => e.category },
+  { header: "Amount", value: (e) => `${e.amount} ${e.currency}` },
+  { header: "Account", value: (e) => e.accountTransaction?.account.name ?? "—" },
+  { header: "Case", value: (e) => e.case?.caseNumber ?? "General" },
+  { header: "Paid by", value: (e) => `${e.paidBy.firstName} ${e.paidBy.lastName}` },
+  { header: "Date", value: (e) => new Date(e.incurredAt).toISOString().slice(0, 10) },
+];
 
 export default function ExpensesPage() {
   const allowed = usePermissionGuard("VIEW_FINANCE");
@@ -46,6 +57,14 @@ export default function ExpensesPage() {
 
   if (!allowed) return null;
 
+  const fetchAllRows = () =>
+    fetchAllPages((p, l) =>
+      listExpenses({ page: p, limit: l }).then((result) => ({
+        items: result.expenses,
+        total: result.total,
+      })),
+    );
+
   const handleSubmit = async (values: ExpenseFormValues) => {
     try {
       await createExpense(values);
@@ -68,6 +87,12 @@ export default function ExpensesPage() {
             <Button variant="outline" size="icon" onClick={fetchExpenses} aria-label="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
+            <ExportMenu
+              filename="expenses"
+              pdfTitle="Expenses"
+              columns={COLUMNS}
+              fetchRows={fetchAllRows}
+            />
             {hasPermission("MANAGE_FINANCE") && (
               <Button onClick={() => setDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />

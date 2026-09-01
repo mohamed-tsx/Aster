@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Download, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/users/page-header";
 import {
   Select,
@@ -11,10 +9,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ExportMenu } from "@/components/export/export-menu";
+import { PreviewTable } from "@/components/export/preview-table";
+import { ListPagination } from "@/components/pagination/list-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { usePermissionGuard } from "@/hooks/use-permission-guard";
 import { useToast } from "@/hooks/use-toast";
 import { listAccounts, listAccountTransactions, getErrorMessage } from "@/services/accounts";
-import { exportToExcel, fetchAllPages, type ExportColumn } from "@/lib/export";
+import { fetchAllPages, type ExportColumn } from "@/lib/export";
 import type { Account, AccountTransaction } from "@/types/account";
 
 const COLUMNS: ExportColumn<AccountTransaction>[] = [
@@ -39,7 +41,10 @@ export default function AccountLedgerReportPage() {
   const toast = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountId, setAccountId] = useState("");
-  const [exporting, setExporting] = useState(false);
+  const { page, limit, setPage, setLimit, resetPage } = usePagination();
+  const [rows, setRows] = useState<AccountTransaction[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     listAccounts()
@@ -48,67 +53,98 @@ export default function AccountLedgerReportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const fetchPreview = useCallback(async () => {
+    if (!accountId) {
+      setRows([]);
+      setTotal(0);
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await listAccountTransactions(accountId, { page, limit });
+      setRows(result.transactions);
+      setTotal(result.total);
+    } catch (error) {
+      toast.error("Failed to load transactions", getErrorMessage(error));
+      setRows([]);
+      setTotal(0);
+    } finally {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId, page, limit]);
+
+  useEffect(() => {
+    fetchPreview();
+  }, [fetchPreview]);
+
   if (!allowed) return null;
 
-  const handleExport = async () => {
-    if (!accountId) return;
-    setExporting(true);
-    try {
-      const transactions = await fetchAllPages((page, limit) =>
-        listAccountTransactions(accountId, { page, limit }).then((result) => ({
-          items: result.transactions,
-          total: result.total,
-        })),
-      );
+  const account = accounts.find((a) => a.id === accountId);
 
-      if (transactions.length === 0) {
-        toast.info("Nothing to export", "This account has no transactions.");
-        return;
-      }
-
-      const account = accounts.find((a) => a.id === accountId);
-      exportToExcel(
-        `ledger-${account?.name ?? "account"}-${new Date().toISOString().slice(0, 10)}`,
-        transactions,
-        COLUMNS,
-      );
-      toast.success(`Exported ${transactions.length} transaction${transactions.length === 1 ? "" : "s"}`);
-    } catch (error) {
-      toast.error("Export failed", getErrorMessage(error));
-    } finally {
-      setExporting(false);
-    }
-  };
+  const fetchAllRows = () =>
+    fetchAllPages((p, l) =>
+      listAccountTransactions(accountId, { page: p, limit: l }).then((result) => ({
+        items: result.transactions,
+        total: result.total,
+      })),
+    );
 
   return (
     <div className="mx-auto max-w-full space-y-6">
       <PageHeader
         title="Account ledger report"
-        description="Export an account's full transaction history to Excel."
+        description="Pick an account to preview and export its full transaction history."
+        actions={
+          <ExportMenu
+            filename={`ledger-${account?.name ?? "account"}`}
+            pdfTitle={`Ledger — ${account?.name ?? "Account"}`}
+            columns={COLUMNS}
+            fetchRows={fetchAllRows}
+            disabled={!accountId}
+          />
+        }
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Select value={accountId} onValueChange={setAccountId}>
-          <SelectTrigger className="w-full sm:w-[240px]">
-            <SelectValue placeholder="Select an account" />
-          </SelectTrigger>
-          <SelectContent>
-            {accounts.map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {a.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button onClick={handleExport} disabled={!accountId || exporting}>
-          {exporting ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="mr-2 h-4 w-4" />
-          )}
-          Export to Excel
-        </Button>
-      </div>
+      <Select
+        value={accountId}
+        onValueChange={(value) => {
+          setAccountId(value);
+          resetPage();
+        }}
+      >
+        <SelectTrigger className="w-full sm:w-[260px]">
+          <SelectValue placeholder="Select an account" />
+        </SelectTrigger>
+        <SelectContent>
+          {accounts.map((a) => (
+            <SelectItem key={a.id} value={a.id}>
+              {a.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <PreviewTable
+        columns={COLUMNS}
+        rows={rows}
+        loading={loading}
+        rowKey={(t) => t.id}
+        emptyMessage={accountId ? "This account has no transactions." : "Select an account to begin."}
+        caption={accountId && !loading ? `${total} transaction${total === 1 ? "" : "s"} — showing page ${page}` : undefined}
+      />
+
+      {accountId ? (
+        <ListPagination
+          page={page}
+          totalPages={Math.max(1, Math.ceil(total / limit))}
+          total={total}
+          limit={limit}
+          onPageChange={setPage}
+          onLimitChange={setLimit}
+          itemLabel="transactions"
+        />
+      ) : null}
     </div>
   );
 }
