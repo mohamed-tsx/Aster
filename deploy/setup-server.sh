@@ -3,8 +3,8 @@
 # Run by hand over SSH as a user with sudo: `sudo bash deploy/setup-server.sh`
 #
 # Usage:
-#   sudo APP_DOMAIN=app.example.com API_DOMAIN=api.example.com \
-#        REPO_URL=git@github.com:you/aster.git \
+#   sudo APP_DOMAIN=aster.withmohamed.com API_DOMAIN=api.withmohamed.com \
+#        REPO_URL=git@github.com:mohamed-tsx/aster.git \
 #        bash deploy/setup-server.sh
 #
 # Safe to re-run: each step checks whether it already applied.
