@@ -11,6 +11,8 @@ export type CaseStats = {
 export type FinanceStats = {
   totalBalances: Record<string, number>;
   accountCount: number;
+  outstandingLoans: Record<string, number>;
+  outstandingPayables: Record<string, number>;
 };
 
 export type ActivityType =

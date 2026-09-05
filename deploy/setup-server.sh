@@ -8,7 +8,7 @@
 #        bash deploy/setup-server.sh
 #
 # Safe to re-run: each step checks whether it already applied.
-set -euo pipefail
+set -euo pipefail 
 
 APP_DOMAIN="${APP_DOMAIN:?Set APP_DOMAIN, e.g. aster.withmohamed.com}"
 API_DOMAIN="${API_DOMAIN:?Set API_DOMAIN, e.g. api.withmohamed.com}"

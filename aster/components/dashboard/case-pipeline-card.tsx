@@ -1,4 +1,13 @@
+"use client";
+
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import type { CaseStats } from "@/types/dashboard";
 import type { CaseStatus } from "@/types/case";
 
@@ -12,45 +21,68 @@ const STATUS_ORDER: CaseStatus[] = [
   "CANCELLED",
 ];
 
-function StatTile({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-md border p-3">
-      <p className="text-2xl font-semibold">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-    </div>
-  );
-}
+const STATUS_LABEL: Record<CaseStatus, string> = {
+  NEW: "New",
+  HOSPITAL_MATCHING: "Matching",
+  HOSPITAL_ACCEPTED: "Accepted",
+  HOSPITAL_DECLINED: "Declined",
+  VISA_PROCESSING: "Visa",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+};
+
+const STATUS_COLOR: Record<CaseStatus, string> = {
+  NEW: "var(--primary)",
+  HOSPITAL_MATCHING: "var(--primary)",
+  HOSPITAL_ACCEPTED: "var(--accent)",
+  HOSPITAL_DECLINED: "var(--destructive)",
+  VISA_PROCESSING: "var(--primary)",
+  COMPLETED: "var(--accent)",
+  CANCELLED: "var(--destructive)",
+};
+
+const chartConfig = {
+  count: { label: "Cases" },
+} satisfies ChartConfig;
 
 export function CasePipelineCard({ stats }: { stats: CaseStats }) {
+  const data = STATUS_ORDER.map((status) => ({
+    status,
+    label: STATUS_LABEL[status],
+    count: stats.statusCounts[status] ?? 0,
+  }));
+
+  const total = data.reduce((sum, d) => sum + d.count, 0);
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Case pipeline</CardTitle>
+    <Card className="gap-4">
+      <CardHeader className="flex-row items-start justify-between">
+        <div>
+          <CardTitle className="text-base">Case pipeline</CardTitle>
+          <p className="text-sm text-muted-foreground">{total} cases across all statuses</p>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {STATUS_ORDER.map((status) => (
-            <StatTile
-              key={status}
-              label={status.replace(/_/g, " ")}
-              value={stats.statusCounts[status] ?? 0}
+      <CardContent>
+        <ChartContainer config={chartConfig} className="aspect-auto h-64 w-full">
+          <BarChart data={data} margin={{ left: -20, right: 8 }}>
+            <CartesianGrid vertical={false} strokeDasharray="3 3" />
+            <XAxis
+              dataKey="label"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              interval={0}
+              tick={{ fontSize: 11 }}
             />
-          ))}
-        </div>
-        <div className="grid grid-cols-3 gap-3 border-t pt-4 text-sm">
-          <div>
-            <p className="font-medium">{stats.pendingInquiries}</p>
-            <p className="text-xs text-muted-foreground">Pending hospital inquiries</p>
-          </div>
-          <div>
-            <p className="font-medium">{stats.visasAwaitingFee}</p>
-            <p className="text-xs text-muted-foreground">Visas awaiting fee</p>
-          </div>
-          <div>
-            <p className="font-medium">{stats.visasAwaitingEmbassyVisit}</p>
-            <p className="text-xs text-muted-foreground">Awaiting embassy visit</p>
-          </div>
-        </div>
+            <YAxis tickLine={false} axisLine={false} tickMargin={8} allowDecimals={false} />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+            <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={48}>
+              {data.map((d) => (
+                <Cell key={d.status} fill={STATUS_COLOR[d.status]} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   );
