@@ -1,6 +1,9 @@
-# Nginx server block for the Aster frontend (Next.js via PM2 on :3000)
+# Nginx server block for the Aster frontend (Next.js via PM2 on :3001)
 # Installed by deploy/setup-server.sh as /etc/nginx/sites-available/aster-app
 # __DOMAIN__ is replaced with the real app subdomain (e.g. app.example.com)
+#
+# NOTE: this VPS also hosts another app whose frontend already owns :3000,
+# so Aster's frontend runs on :3001 to avoid an EADDRINUSE collision.
 
 server {
     listen 80;
@@ -8,7 +11,7 @@ server {
     server_name __DOMAIN__;
 
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:3001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";

@@ -8,10 +8,10 @@ module.exports = {
       name: "aster-frontend",
       cwd: path.join(REPO_ROOT, "aster"),
       script: "npm",
-      args: "run start -- -p 3000",
+      args: "run start -- -p 3001",
       env: {
         NODE_ENV: "production",
-        PORT: "3000",
+        PORT: "3001",
       },
       max_restarts: 10,
       restart_delay: 3000,
